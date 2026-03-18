@@ -30,6 +30,7 @@ export function MultiSelectCell({
   const [showAddInput, setShowAddInput] = useState(false);
   const [newOptionValue, setNewOptionValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
   const selected = value ?? [];
 
   /** Close dropdown when clicking outside or pressing Escape. */
@@ -54,6 +55,13 @@ export function MultiSelectCell({
       document.removeEventListener("keydown", handleEscape, true);
     };
   }, [open]);
+
+  /** Auto-focus the add input when it appears. */
+  useEffect(() => {
+    if (showAddInput && addInputRef.current) {
+      addInputRef.current.focus();
+    }
+  }, [showAddInput]);
 
   /** Toggle the dropdown. */
   const handleClick = useCallback(() => {
@@ -86,7 +94,7 @@ export function MultiSelectCell({
     return { inUseOptions: inUse, availableOptions: available };
   }, [options, allRecordValues]);
 
-  /** Render a single option row with checkbox indicator. */
+  /** Render a single option row with checkbox indicator and deselect X. */
   const renderOption = (opt: SelectOption) => {
     const isChecked = selected.includes(opt.value);
     return (
@@ -108,9 +116,22 @@ export function MultiSelectCell({
         <span style={{ width: "14px" }}>
           {isChecked ? "\u2713" : ""}
         </span>
-        <span class={`select-tag select-tag--${opt.color}`}>
+        <span class={`select-tag select-tag--${opt.color}`} style={{ flex: 1 }}>
           {opt.value}
         </span>
+        {isChecked && (
+          <span
+            style={{
+              fontSize: "var(--font-ui-smaller)",
+              color: "var(--text-muted)",
+              padding: "0 2px",
+              lineHeight: 1,
+            }}
+            title="Remove"
+          >
+            &#10005;
+          </span>
+        )}
       </div>
     );
   };
@@ -191,12 +212,12 @@ export function MultiSelectCell({
               ) : (
                 <div style={{ padding: "4px 8px", display: "flex", gap: "4px" }}>
                   <input
+                    ref={addInputRef}
                     class="database-form-input"
                     type="text"
                     value={newOptionValue}
                     onInput={(e) => setNewOptionValue((e.target as HTMLInputElement).value)}
                     placeholder="Option name"
-                    autoFocus
                     style={{ flex: 1, padding: "2px 6px", fontSize: "var(--font-ui-small)" }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newOptionValue.trim()) {

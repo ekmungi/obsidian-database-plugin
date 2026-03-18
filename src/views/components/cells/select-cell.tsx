@@ -24,6 +24,7 @@ export function SelectCell({ value, options, allRecordValues, onChange, onAddOpt
   const [showAddInput, setShowAddInput] = useState(false);
   const [newOptionValue, setNewOptionValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
 
   /** Close dropdown when clicking outside or pressing Escape. */
   useEffect(() => {
@@ -47,6 +48,13 @@ export function SelectCell({ value, options, allRecordValues, onChange, onAddOpt
       document.removeEventListener("keydown", handleEscape, true);
     };
   }, [open]);
+
+  /** Auto-focus the add input when it appears. */
+  useEffect(() => {
+    if (showAddInput && addInputRef.current) {
+      addInputRef.current.focus();
+    }
+  }, [showAddInput]);
 
   /** Toggle the dropdown open/closed. */
   const handleClick = useCallback(() => {
@@ -162,12 +170,12 @@ export function SelectCell({ value, options, allRecordValues, onChange, onAddOpt
               ) : (
                 <div style={{ padding: "4px 8px", display: "flex", gap: "4px" }}>
                   <input
+                    ref={addInputRef}
                     class="database-form-input"
                     type="text"
                     value={newOptionValue}
                     onInput={(e) => setNewOptionValue((e.target as HTMLInputElement).value)}
                     placeholder="Option name"
-                    autoFocus
                     style={{ flex: 1, padding: "2px 6px", fontSize: "var(--font-ui-small)" }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newOptionValue.trim()) {
