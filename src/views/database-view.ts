@@ -425,17 +425,14 @@ export class DatabaseView extends ItemView {
     this.renderApp();
   };
 
-  /** Clear values (set to null/empty) for a property across all records without removing the field. */
+  /** Clear values (set to null) for a property across all records without removing the field. */
   private handleClearPropertyFromAll = async (field: string): Promise<void> => {
-    const col = this.schema?.columns.find((c) => c.id === field);
-    if (!col) return;
-    const emptyValue = getYamlGroup(col.type) === "array-options" ? [] : null;
     for (const record of this.records) {
       try {
         const file = this.app.vault.getAbstractFileByPath(record.id);
         if (!(file instanceof TFile)) continue;
         const content = await this.app.vault.read(file);
-        const newContent = updateFrontmatter(content, field, emptyValue);
+        const newContent = updateFrontmatter(content, field, null);
         await this.app.vault.modify(file, newContent);
       } catch (err) {
         console.error(`Database Plugin: Failed to clear "${field}" in ${record.id}`, err);
