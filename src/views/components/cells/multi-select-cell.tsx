@@ -94,48 +94,13 @@ export function MultiSelectCell({
     return { inUseOptions: inUse, availableOptions: available };
   }, [options, allRecordValues]);
 
-  /** Render a single option row with checkbox indicator and deselect X. */
-  const renderOption = (opt: SelectOption) => {
-    const isChecked = selected.includes(opt.value);
-    return (
-      <div
-        key={opt.value}
-        style={{
-          padding: "4px 8px",
-          cursor: "pointer",
-          borderRadius: "var(--radius-s)",
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          background: isChecked
-            ? "var(--background-modifier-hover)"
-            : "transparent",
-        }}
-        onClick={() => handleToggle(opt.value)}
-      >
-        <span style={{ width: "14px" }}>
-          {isChecked ? "\u2713" : ""}
-        </span>
-        <span class={`select-tag select-tag--${opt.color}`} style={{ flex: 1 }}>
-          {opt.value}
-        </span>
-        {isChecked && (
-          <span
-            style={{
-              fontSize: "var(--font-ui-smaller)",
-              color: "var(--text-normal)",
-              opacity: 0.7,
-              padding: "0 2px",
-              lineHeight: 1,
-            }}
-            title="Remove"
-          >
-            &#10005;
-          </span>
-        )}
-      </div>
-    );
-  };
+  /** Split options into selected (for this cell) and unselected. */
+  const { selectedOptions, unselectedOptions } = useMemo(() => {
+    const selSet = new Set(selected);
+    const sel = options.filter((o) => selSet.has(o.value));
+    const unsel = options.filter((o) => !selSet.has(o.value));
+    return { selectedOptions: sel, unselectedOptions: unsel };
+  }, [options, selected]);
 
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
@@ -174,23 +139,64 @@ export function MultiSelectCell({
             padding: "4px",
           }}
         >
-          {inUseOptions.map(renderOption)}
-          {availableOptions.length > 0 && inUseOptions.length > 0 && (
+          {/* Selected options at top with X to deselect */}
+          {selectedOptions.map((opt) => (
+            <div
+              key={opt.value}
+              style={{
+                padding: "4px 8px",
+                cursor: "pointer",
+                borderRadius: "var(--radius-s)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "var(--background-modifier-hover)",
+              }}
+              onClick={() => handleToggle(opt.value)}
+            >
+              <span class={`select-tag select-tag--${opt.color}`} style={{ flex: 1 }}>
+                {opt.value}
+              </span>
+              <span
+                style={{
+                  fontSize: "var(--font-ui-small)",
+                  color: "var(--text-normal)",
+                  opacity: 0.7,
+                  padding: "0 4px",
+                  lineHeight: 1,
+                }}
+                title="Remove"
+              >
+                &#10005;
+              </span>
+            </div>
+          ))}
+          {/* Separator between selected and unselected */}
+          {selectedOptions.length > 0 && unselectedOptions.length > 0 && (
             <div style={{
               borderTop: "1px solid var(--background-modifier-border)",
               margin: "4px 0",
-              paddingTop: "2px",
-            }}>
-              <div style={{
-                padding: "2px 8px",
-                fontSize: "var(--font-ui-smaller)",
-                color: "var(--text-muted)",
-              }}>
-                Available
-              </div>
-            </div>
+            }} />
           )}
-          {availableOptions.map(renderOption)}
+          {/* Unselected options below */}
+          {unselectedOptions.map((opt) => (
+            <div
+              key={opt.value}
+              style={{
+                padding: "4px 8px",
+                cursor: "pointer",
+                borderRadius: "var(--radius-s)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+              onClick={() => handleToggle(opt.value)}
+            >
+              <span class={`select-tag select-tag--${opt.color}`}>
+                {opt.value}
+              </span>
+            </div>
+          ))}
           {onAddOption && (
             <div style={{
               borderTop: "1px solid var(--background-modifier-border)",
