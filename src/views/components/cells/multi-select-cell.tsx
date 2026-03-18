@@ -1,23 +1,26 @@
-/** Multi-select cell editor — toggle tags from a dropdown, closes on click-outside. */
+/** Multi-select cell editor — toggle tags from a dropdown with in-use/available sections. */
 
 import { h } from "preact";
-import { useState, useCallback, useRef, useEffect } from "preact/hooks";
+import { useState, useCallback, useRef, useEffect, useMemo } from "preact/hooks";
 import type { SelectOption } from "../../../types/schema";
 
 /** Props for the MultiSelectCell component. */
 interface MultiSelectCellProps {
   readonly value: readonly string[] | null;
   readonly options: readonly SelectOption[];
+  /** All values for this column across all records — used to split in-use vs available. */
+  readonly allRecordValues?: readonly string[];
   readonly onChange: (value: readonly string[]) => void;
 }
 
 /**
  * Multi-select cell showing colored tags with a toggle dropdown.
- * Closes on click-outside or Escape.
+ * Dropdown shows in-use options above a separator, then available options.
  */
 export function MultiSelectCell({
   value,
   options,
+  allRecordValues,
   onChange,
 }: MultiSelectCellProps) {
   const [open, setOpen] = useState(false);
@@ -67,6 +70,46 @@ export function MultiSelectCell({
   /** Build a color lookup map for rendering tags. */
   const colorMap = new Map(options.map((o) => [o.value, o.color]));
 
+  /** Split options into in-use and available sections. */
+  const { inUseOptions, availableOptions } = useMemo(() => {
+    if (!allRecordValues || allRecordValues.length === 0) {
+      return { inUseOptions: options, availableOptions: [] as readonly SelectOption[] };
+    }
+    const inUseValues = new Set(allRecordValues);
+    const inUse = options.filter((o) => inUseValues.has(o.value));
+    const available = options.filter((o) => !inUseValues.has(o.value));
+    return { inUseOptions: inUse, availableOptions: available };
+  }, [options, allRecordValues]);
+
+  /** Render a single option row with checkbox indicator. */
+  const renderOption = (opt: SelectOption) => {
+    const isChecked = selected.includes(opt.value);
+    return (
+      <div
+        key={opt.value}
+        style={{
+          padding: "4px 8px",
+          cursor: "pointer",
+          borderRadius: "var(--radius-s)",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          background: isChecked
+            ? "var(--background-modifier-hover)"
+            : "transparent",
+        }}
+        onClick={() => handleToggle(opt.value)}
+      >
+        <span style={{ width: "14px" }}>
+          {isChecked ? "\u2713" : ""}
+        </span>
+        <span class={`select-tag select-tag--${opt.color}`}>
+          {opt.value}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
       <div
@@ -104,33 +147,23 @@ export function MultiSelectCell({
             padding: "4px",
           }}
         >
-          {options.map((opt) => {
-            const isChecked = selected.includes(opt.value);
-            return (
-              <div
-                key={opt.value}
-                style={{
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                  borderRadius: "var(--radius-s)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: isChecked
-                    ? "var(--background-modifier-hover)"
-                    : "transparent",
-                }}
-                onClick={() => handleToggle(opt.value)}
-              >
-                <span style={{ width: "14px" }}>
-                  {isChecked ? "\u2713" : ""}
-                </span>
-                <span class={`select-tag select-tag--${opt.color}`}>
-                  {opt.value}
-                </span>
+          {inUseOptions.map(renderOption)}
+          {availableOptions.length > 0 && inUseOptions.length > 0 && (
+            <div style={{
+              borderTop: "1px solid var(--background-modifier-border)",
+              margin: "4px 0",
+              paddingTop: "2px",
+            }}>
+              <div style={{
+                padding: "2px 8px",
+                fontSize: "var(--font-ui-smaller)",
+                color: "var(--text-muted)",
+              }}>
+                Available
               </div>
-            );
-          })}
+            </div>
+          )}
+          {availableOptions.map(renderOption)}
         </div>
       )}
     </div>

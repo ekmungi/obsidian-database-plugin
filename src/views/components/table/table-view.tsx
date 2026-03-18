@@ -80,6 +80,7 @@ export function TableView({
                 handleCellChange(record.id, field, value)
               }
               onOpenNote={() => onOpenNote(record)}
+              records={records}
             />
           ))}
         </tbody>

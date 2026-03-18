@@ -1,9 +1,9 @@
 /** Universal cell renderer — picks the right editor based on column type. */
 
 import { h } from "preact";
-import { useCallback } from "preact/hooks";
+import { useCallback, useMemo } from "preact/hooks";
 import type { ColumnDefinition } from "../../../types/schema";
-import type { CellValue } from "../../../types/record";
+import type { CellValue, DatabaseRecord } from "../../../types/record";
 import { TextCell } from "./text-cell";
 import { NumberCell } from "./number-cell";
 import { DateCell } from "./date-cell";
@@ -19,6 +19,8 @@ interface CellRendererProps {
   readonly value: CellValue;
   readonly onChange: (value: CellValue) => void;
   readonly onNavigate?: (noteName: string) => void;
+  /** All records — used to compute in-use values for select dropdowns. */
+  readonly records?: readonly DatabaseRecord[];
 }
 
 /**
@@ -33,7 +35,25 @@ export function CellRenderer({
   value,
   onChange,
   onNavigate,
+  records,
 }: CellRendererProps) {
+  /** Compute all record values for this column (for select in-use/available sections). */
+  const allRecordValues = useMemo(() => {
+    if (!records || (column.type !== "select" && column.type !== "multi-select")) return undefined;
+    const vals = new Set<string>();
+    for (const r of records) {
+      const v = r.values[column.id];
+      if (Array.isArray(v)) {
+        for (const item of v) {
+          if (typeof item === "string" && item) vals.add(item);
+        }
+      } else if (typeof v === "string" && v) {
+        vals.add(v);
+      }
+    }
+    return Array.from(vals);
+  }, [records, column.id, column.type]);
+
   /** Wrap onChange for text cells to match CellValue signature. */
   const handleTextChange = useCallback(
     (v: string) => onChange(v),
@@ -118,6 +138,7 @@ export function CellRenderer({
         <SelectCell
           value={selectVal}
           options={column.options ?? []}
+          allRecordValues={allRecordValues}
           onChange={handleSelectChange}
         />
       );
@@ -132,6 +153,7 @@ export function CellRenderer({
         <MultiSelectCell
           value={multiVal}
           options={column.options ?? []}
+          allRecordValues={allRecordValues}
           onChange={handleMultiSelectChange}
         />
       );

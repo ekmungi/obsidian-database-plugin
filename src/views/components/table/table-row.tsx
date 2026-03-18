@@ -12,6 +12,8 @@ interface TableRowProps {
   readonly columns: readonly ColumnDefinition[];
   readonly onCellChange: (field: string, value: CellValue) => void;
   readonly onOpenNote: () => void;
+  /** All records — passed to CellRenderer for select in-use/available sections. */
+  readonly records?: readonly DatabaseRecord[];
 }
 
 /**
@@ -28,6 +30,7 @@ export function TableRow({
   columns,
   onCellChange,
   onOpenNote,
+  records,
 }: TableRowProps) {
   /** Handle cell value change, wrapping with the field name. */
   const handleChange = useCallback(
@@ -60,6 +63,7 @@ export function TableRow({
               value={cellValue}
               onChange={(value) => handleChange(col.id, value)}
               onNavigate={undefined}
+              records={records}
             />
           </td>
         );
