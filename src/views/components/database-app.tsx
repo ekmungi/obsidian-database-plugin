@@ -10,6 +10,7 @@ import type { DatabaseRecord } from "../../types/record";
 import { filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
 import { addColumn, removeColumn, updateColumn } from "../../engine/schema-manager";
 import { isSameGroup } from "../../engine/type-groups";
+import { pickNextColor } from "../../engine/color-cycle";
 import { TableView } from "./table/table-view";
 import { KanbanView } from "./kanban/kanban-view";
 import { CalendarView } from "./calendar/calendar-view";
@@ -261,20 +262,13 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     setModalState({ mode: "closed" });
   }, [schema, modalState, onSchemaChange, onAddPropertyToAll, onClearPropertyFromAll, onRenameOption]);
 
-  /** Color sequence for auto-assigning colors to new options. */
-  const COLOR_SEQUENCE: readonly ColorKey[] = [
-    "blue", "green", "purple", "orange", "red",
-    "teal", "yellow", "pink", "brown", "gray",
-  ];
-
-  /** Add a new option to a select/multi-select column's schema with auto-cycling color. */
+  /** Add a new option to a select/multi-select column's schema with smart color assignment. */
   const handleAddOption = useCallback((columnId: string, value: string, _color: ColorKey) => {
     const col = schema.columns.find((c) => c.id === columnId);
     if (!col) return;
     const existingOptions = col.options ?? [];
     if (existingOptions.some((o) => o.value === value)) return;
-    // Auto-cycle: pick the next color in sequence based on how many options exist
-    const autoColor = COLOR_SEQUENCE[existingOptions.length % COLOR_SEQUENCE.length];
+    const autoColor = pickNextColor(existingOptions);
     const newOptions = [...existingOptions, { value, color: autoColor }];
     const newSchema = updateColumn(schema, columnId, { options: newOptions });
     onSchemaChange(newSchema);

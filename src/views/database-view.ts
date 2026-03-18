@@ -9,13 +9,7 @@ import { updateFrontmatter, removeFrontmatterField } from "../data/frontmatter-i
 import { indexFile } from "../data/file-indexer";
 import { parseSchema, createDefaultSchema } from "../engine/schema-manager";
 import { getYamlGroup } from "../engine/type-groups";
-import type { ColorKey } from "../types/schema";
-
-/** Color sequence for auto-assigning colors to discovered options. */
-const COLOR_SEQUENCE: readonly ColorKey[] = [
-  "blue", "green", "purple", "orange", "red",
-  "teal", "yellow", "pink", "brown", "gray",
-];
+import { pickNextColor } from "../engine/color-cycle";
 import { renameOptionInValue, removeOptionFromValue } from "../engine/option-operations";
 import { DatabaseApp } from "./components/database-app";
 
@@ -138,8 +132,8 @@ export class DatabaseView extends ItemView {
           if (typeof v !== "string" || !v || v === "[]" || v.startsWith("[")) continue;
           if (!knownValues.has(v)) {
             knownValues.add(v);
-            // Auto-cycle color based on current option count
-            const autoColor = COLOR_SEQUENCE[newOptions.length % COLOR_SEQUENCE.length];
+            // Pick a color not already used by existing options
+            const autoColor = pickNextColor(newOptions);
             newOptions.push({ value: v, color: autoColor });
             changed = true;
           }

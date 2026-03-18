@@ -1,22 +1,15 @@
 /** Color picker popup for select option color customization.
- *  Displays a grid of color swatches matching all ColorKey values. */
+ *  Displays a grid of color swatches matching all ColorKey values.
+ *  Closes on outside click or Escape. */
 
 import { h } from "preact";
-import { useCallback } from "preact/hooks";
+import { useCallback, useEffect, useRef } from "preact/hooks";
 import type { ColorKey } from "../../../types/schema";
 
 /** All available color keys in display order. */
 const ALL_COLORS: readonly ColorKey[] = [
-  "gray",
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "teal",
-  "blue",
-  "purple",
-  "pink",
-  "brown",
+  "gray", "red", "orange", "yellow", "green",
+  "teal", "blue", "purple", "pink", "brown",
 ] as const;
 
 /** Swatch preview colors — saturated pastels with semantic text pairings. */
@@ -45,11 +38,33 @@ interface ColorPickerProps {
 /**
  * Renders a popup grid of color swatches for picking a ColorKey.
  * Active color is highlighted with a border accent.
- *
- * @param props - value, onChange, onClose
- * @returns Preact VNode for color picker popup
+ * Closes on outside click or Escape key.
  */
 export function ColorPicker({ value, onChange, onClose }: ColorPickerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  /** Close on outside click or Escape. */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    // Use setTimeout to avoid the current click event triggering immediate close
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside, true);
+      document.addEventListener("keydown", handleEscape, true);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("keydown", handleEscape, true);
+    };
+  }, [onClose]);
+
   /** Handle click on a swatch — select the color and close. */
   const handleSelect = useCallback(
     (color: ColorKey) => {
@@ -59,13 +74,8 @@ export function ColorPicker({ value, onChange, onClose }: ColorPickerProps) {
     [onChange, onClose],
   );
 
-  /** Stop propagation so backdrop click does not fire through the popup. */
-  const stopPropagation = useCallback((e: Event) => {
-    e.stopPropagation();
-  }, []);
-
   return (
-    <div class="color-picker-popup" onClick={stopPropagation}>
+    <div ref={containerRef} class="color-picker-popup">
       {ALL_COLORS.map((color) => (
         <div
           key={color}
