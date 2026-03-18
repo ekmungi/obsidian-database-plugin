@@ -2,7 +2,7 @@
 
 import { h } from "preact";
 import { useCallback } from "preact/hooks";
-import type { ColumnDefinition } from "../../../types/schema";
+import type { ColumnDefinition, ColorKey } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
 import { CellRenderer } from "../cells/cell-renderer";
 
@@ -14,6 +14,8 @@ interface TableRowProps {
   readonly onOpenNote: () => void;
   /** All records — passed to CellRenderer for select in-use/available sections. */
   readonly records?: readonly DatabaseRecord[];
+  /** Called to add a new option to a select/multi-select column. */
+  readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
 }
 
 /**
@@ -31,6 +33,7 @@ export function TableRow({
   onCellChange,
   onOpenNote,
   records,
+  onAddOption,
 }: TableRowProps) {
   /** Handle cell value change, wrapping with the field name. */
   const handleChange = useCallback(
@@ -64,6 +67,7 @@ export function TableRow({
               onChange={(value) => handleChange(col.id, value)}
               onNavigate={undefined}
               records={records}
+              onAddOption={onAddOption}
             />
           </td>
         );

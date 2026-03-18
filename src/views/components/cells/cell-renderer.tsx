@@ -2,7 +2,7 @@
 
 import { h } from "preact";
 import { useCallback, useMemo } from "preact/hooks";
-import type { ColumnDefinition } from "../../../types/schema";
+import type { ColumnDefinition, ColorKey } from "../../../types/schema";
 import type { CellValue, DatabaseRecord } from "../../../types/record";
 import { TextCell } from "./text-cell";
 import { NumberCell } from "./number-cell";
@@ -21,6 +21,8 @@ interface CellRendererProps {
   readonly onNavigate?: (noteName: string) => void;
   /** All records — used to compute in-use values for select dropdowns. */
   readonly records?: readonly DatabaseRecord[];
+  /** Called to add a new option to a select/multi-select column schema. */
+  readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
 }
 
 /**
@@ -36,7 +38,16 @@ export function CellRenderer({
   onChange,
   onNavigate,
   records,
+  onAddOption,
 }: CellRendererProps) {
+  /** Wrap onAddOption to bind the column ID. */
+  const handleAddOption = useCallback(
+    (value: string, color: ColorKey) => {
+      onAddOption?.(column.id, value, color);
+    },
+    [onAddOption, column.id]
+  );
+
   /** Compute all record values for this column (for select in-use/available sections). */
   const allRecordValues = useMemo(() => {
     if (!records || (column.type !== "select" && column.type !== "multi-select")) return undefined;
@@ -140,6 +151,7 @@ export function CellRenderer({
           options={column.options ?? []}
           allRecordValues={allRecordValues}
           onChange={handleSelectChange}
+          onAddOption={onAddOption ? handleAddOption : undefined}
         />
       );
     }
@@ -155,6 +167,7 @@ export function CellRenderer({
           options={column.options ?? []}
           allRecordValues={allRecordValues}
           onChange={handleMultiSelectChange}
+          onAddOption={onAddOption ? handleAddOption : undefined}
         />
       );
     }

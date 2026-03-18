@@ -2,7 +2,7 @@
 
 import { h } from "preact";
 import { useState, useCallback, useRef, useEffect, useMemo } from "preact/hooks";
-import type { SelectOption } from "../../../types/schema";
+import type { SelectOption, ColorKey } from "../../../types/schema";
 
 /** Props for the SelectCell component. */
 interface SelectCellProps {
@@ -11,14 +11,18 @@ interface SelectCellProps {
   /** All values for this column across all records — used to split in-use vs available. */
   readonly allRecordValues?: readonly string[];
   readonly onChange: (value: string | null) => void;
+  /** Called to add a new option to the schema and select it. */
+  readonly onAddOption?: (value: string, color: ColorKey) => void;
 }
 
 /**
  * Single-select cell with colored tag display and dropdown editor.
  * Dropdown shows in-use options above a separator, then available options.
  */
-export function SelectCell({ value, options, allRecordValues, onChange }: SelectCellProps) {
+export function SelectCell({ value, options, allRecordValues, onChange, onAddOption }: SelectCellProps) {
   const [open, setOpen] = useState(false);
+  const [showAddInput, setShowAddInput] = useState(false);
+  const [newOptionValue, setNewOptionValue] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   /** Close dropdown when clicking outside or pressing Escape. */
@@ -136,6 +140,67 @@ export function SelectCell({ value, options, allRecordValues, onChange }: Select
             </div>
           )}
           {availableOptions.map(renderOption)}
+          {onAddOption && (
+            <div style={{
+              borderTop: "1px solid var(--background-modifier-border)",
+              marginTop: "4px",
+              paddingTop: "4px",
+            }}>
+              {!showAddInput ? (
+                <div
+                  style={{
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    borderRadius: "var(--radius-s)",
+                    fontSize: "var(--font-ui-small)",
+                    color: "var(--text-accent)",
+                  }}
+                  onClick={() => setShowAddInput(true)}
+                >
+                  + Add new option
+                </div>
+              ) : (
+                <div style={{ padding: "4px 8px", display: "flex", gap: "4px" }}>
+                  <input
+                    class="database-form-input"
+                    type="text"
+                    value={newOptionValue}
+                    onInput={(e) => setNewOptionValue((e.target as HTMLInputElement).value)}
+                    placeholder="Option name"
+                    autoFocus
+                    style={{ flex: 1, padding: "2px 6px", fontSize: "var(--font-ui-small)" }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newOptionValue.trim()) {
+                        onAddOption(newOptionValue.trim(), "gray");
+                        onChange(newOptionValue.trim());
+                        setNewOptionValue("");
+                        setShowAddInput(false);
+                        setOpen(false);
+                      }
+                      if (e.key === "Escape") {
+                        setShowAddInput(false);
+                        setNewOptionValue("");
+                      }
+                    }}
+                  />
+                  <button
+                    class="database-btn database-btn--primary"
+                    style={{ padding: "2px 8px", fontSize: "var(--font-ui-small)" }}
+                    onClick={() => {
+                      if (!newOptionValue.trim()) return;
+                      onAddOption(newOptionValue.trim(), "gray");
+                      onChange(newOptionValue.trim());
+                      setNewOptionValue("");
+                      setShowAddInput(false);
+                      setOpen(false);
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

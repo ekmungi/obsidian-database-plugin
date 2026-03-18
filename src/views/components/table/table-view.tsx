@@ -2,7 +2,7 @@
 
 import { h } from "preact";
 import { useCallback, useMemo } from "preact/hooks";
-import type { DatabaseSchema, SortRule } from "../../../types/schema";
+import type { DatabaseSchema, SortRule, ColorKey } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
 import { TableHeader } from "./table-header";
 import { TableRow } from "./table-row";
@@ -18,6 +18,8 @@ interface TableViewProps {
   readonly onOpenNote: (record: DatabaseRecord) => void;
   readonly onAddColumn?: () => void;
   readonly onEditColumn?: (columnId: string) => void;
+  /** Called to add a new option to a select/multi-select column. */
+  readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export function TableView({
   onOpenNote,
   onAddColumn,
   onEditColumn,
+  onAddOption,
 }: TableViewProps) {
   /** Get visible columns (all columns for now; hidden column support can use view config). */
   const visibleColumns = useMemo(() => schema.columns, [schema.columns]);
@@ -81,6 +84,7 @@ export function TableView({
               }
               onOpenNote={() => onOpenNote(record)}
               records={records}
+              onAddOption={onAddOption}
             />
           ))}
         </tbody>

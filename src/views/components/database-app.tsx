@@ -4,7 +4,7 @@ import { h } from "preact";
 import { useState, useCallback, useMemo, useEffect } from "preact/hooks";
 import type {
   DatabaseSchema, ViewConfig, CellValue, SortRule, SortDirection,
-  FilterRule, ColumnDefinition, ColumnType,
+  FilterRule, ColumnDefinition, ColumnType, ColorKey,
 } from "../../types";
 import type { DatabaseRecord } from "../../types/record";
 import { filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
@@ -251,6 +251,17 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     setModalState({ mode: "closed" });
   }, [schema, modalState, onSchemaChange, onAddPropertyToAll, onClearPropertyFromAll]);
 
+  /** Add a new option to a select/multi-select column's schema. */
+  const handleAddOption = useCallback((columnId: string, value: string, color: ColorKey) => {
+    const col = schema.columns.find((c) => c.id === columnId);
+    if (!col) return;
+    const existingOptions = col.options ?? [];
+    if (existingOptions.some((o) => o.value === value)) return;
+    const newOptions = [...existingOptions, { value, color }];
+    const newSchema = updateColumn(schema, columnId, { options: newOptions });
+    onSchemaChange(newSchema);
+  }, [schema, onSchemaChange]);
+
   /** Delete a column — updates schema AND removes property from all files. */
   const handleDeleteColumn = useCallback(() => {
     if (modalState.mode !== "edit") return;
@@ -303,6 +314,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         onClearSort: handleClearSort,
         onAddColumn: handleAddColumn,
         onEditColumn: handleEditColumn,
+        onAddOption: handleAddOption,
       })}
       {showAddMenu && undiscoveredProperties.length > 0 && (
         <>
@@ -378,6 +390,7 @@ interface RenderParams {
   readonly onClearSort: () => void;
   readonly onAddColumn: () => void;
   readonly onEditColumn: (columnId: string) => void;
+  readonly onAddOption: (columnId: string, value: string, color: ColorKey) => void;
 }
 
 /** Dispatches rendering to the correct view component based on view type. */
@@ -394,6 +407,7 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           onOpenNote={params.onOpenNote}
           onAddColumn={params.onAddColumn}
           onEditColumn={params.onEditColumn}
+          onAddOption={params.onAddOption}
         />
       );
     case "kanban":
