@@ -501,6 +501,8 @@ export class DatabaseView extends ItemView {
           this.records = this.records.map((r) =>
             r.id === file.path ? updated : r
           );
+          // Discover new option values added via the MD editor
+          this.syncSchemaOptionsFromRecords();
           this.renderApp();
         }
       })

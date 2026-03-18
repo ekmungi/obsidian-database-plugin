@@ -412,6 +412,18 @@ export function ColumnConfigModal({
                   </div>
                 ))}
               </div>
+              {confirmDeleteOption && (
+                <div style={{
+                  color: "var(--text-error)",
+                  fontSize: "var(--font-ui-smaller)",
+                  marginTop: "4px",
+                  padding: "4px 8px",
+                  background: "var(--background-modifier-error)",
+                  borderRadius: "var(--radius-s)",
+                }}>
+                  Click X again to delete "{confirmDeleteOption}" from all pages.
+                </div>
+              )}
               <button
                 class="database-btn database-btn--ghost"
                 onClick={addOption}
