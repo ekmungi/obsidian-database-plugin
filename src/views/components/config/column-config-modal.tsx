@@ -33,10 +33,12 @@ interface ColumnConfigModalProps {
   readonly column?: ColumnDefinition;
   /** IDs already in use — the new/edited column must not collide. */
   readonly existingIds: readonly string[];
-  /** Called with the saved column definition. */
-  readonly onSave: (column: ColumnDefinition) => void;
+  /** Called with the saved column definition and any option renames. */
+  readonly onSave: (column: ColumnDefinition, renames?: ReadonlyMap<string, string>) => void;
   /** Called to delete the column (only for editing). */
   readonly onDelete?: () => void;
+  /** Called to delete a single option and propagate to pages. */
+  readonly onDeleteOption?: (optionName: string) => void;
   /** Called to close the modal without saving. */
   readonly onClose: () => void;
 }
@@ -66,6 +68,7 @@ export function ColumnConfigModal({
   existingIds,
   onSave,
   onDelete,
+  onDeleteOption,
   onClose,
 }: ColumnConfigModalProps) {
   const isEditing = column !== undefined;
@@ -84,6 +87,9 @@ export function ColumnConfigModal({
   const [idManuallyEdited, setIdManuallyEdited] = useState(isEditing);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showTypeChangeConfirm, setShowTypeChangeConfirm] = useState(false);
+  /** Tracks option renames: original value -> new value. */
+  const [renames, setRenames] = useState<Map<string, string>>(new Map());
+  const [confirmDeleteOption, setConfirmDeleteOption] = useState<string | null>(null);
   const [colorPickerIdx, setColorPickerIdx] = useState<number | null>(null);
   const [error, setError] = useState("");
 
@@ -118,17 +124,43 @@ export function ColumnConfigModal({
     setOptions((prev) => [...prev, { value: "", color: DEFAULT_COLOR }]);
   }, []);
 
-  /** Remove an option by index. */
+  /** Remove an option by index — if editing, shows confirmation and propagates to pages. */
   const removeOption = useCallback((idx: number) => {
+    const opt = options[idx];
+    if (isEditing && opt && opt.value && onDeleteOption) {
+      // Show confirmation for existing options
+      if (confirmDeleteOption !== opt.value) {
+        setConfirmDeleteOption(opt.value);
+        return;
+      }
+      // Confirmed — propagate deletion to pages, then remove from local state
+      onDeleteOption(opt.value);
+      setConfirmDeleteOption(null);
+    }
     setOptions((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  }, [options, isEditing, onDeleteOption, confirmDeleteOption]);
 
-  /** Update an option's value text. */
+  /** Update an option's value text, tracking renames for propagation. */
   const updateOptionValue = useCallback((idx: number, value: string) => {
-    setOptions((prev) =>
-      prev.map((opt, i) => (i === idx ? { ...opt, value } : opt)),
-    );
-  }, []);
+    setOptions((prev) => {
+      const oldValue = prev[idx].value;
+      // Track rename: map original value to new value (only for existing options with content)
+      if (isEditing && oldValue && oldValue !== value) {
+        setRenames((r) => {
+          const updated = new Map(r);
+          // If this option was already renamed, track from the original name
+          const originalName = [...updated.entries()].find(([, v]) => v === oldValue)?.[0] ?? oldValue;
+          if (value) {
+            updated.set(originalName, value);
+          } else {
+            updated.delete(originalName);
+          }
+          return updated;
+        });
+      }
+      return prev.map((opt, i) => (i === idx ? { ...opt, value } : opt));
+    });
+  }, [isEditing]);
 
   /** Update an option's color. */
   const updateOptionColor = useCallback((idx: number, color: ColorKey) => {
@@ -183,6 +215,16 @@ export function ColumnConfigModal({
       return null;
     }
 
+    // Check for duplicate option names
+    if (type === "select" || type === "multi-select") {
+      const optionValues = options.filter((o) => o.value.trim()).map((o) => o.value.trim());
+      const uniqueValues = new Set(optionValues);
+      if (uniqueValues.size < optionValues.length) {
+        setError("Option names must be unique.");
+        return null;
+      }
+    }
+
     const base: ColumnDefinition = { id, type, label: label.trim() };
     const withOptions =
       type === "select" || type === "multi-select"
@@ -217,8 +259,8 @@ export function ColumnConfigModal({
     }
 
     setShowTypeChangeConfirm(false);
-    onSave(colDef);
-  }, [buildColumnDef, isEditing, column, showTypeChangeConfirm, onSave]);
+    onSave(colDef, renames.size > 0 ? renames : undefined);
+  }, [buildColumnDef, isEditing, column, showTypeChangeConfirm, onSave, renames]);
 
   /** Handle delete with confirmation step. */
   const handleDelete = useCallback(() => {
@@ -361,9 +403,9 @@ export function ColumnConfigModal({
                       &#9660;
                     </button>
                     <button
-                      class="database-btn database-btn--ghost"
+                      class={`database-btn ${confirmDeleteOption === opt.value ? "database-btn--danger" : "database-btn--ghost"}`}
                       onClick={() => removeOption(idx)}
-                      title="Remove"
+                      title={confirmDeleteOption === opt.value ? "Click again to confirm" : "Remove"}
                     >
                       &#10005;
                     </button>

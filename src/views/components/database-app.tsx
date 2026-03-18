@@ -30,6 +30,10 @@ export interface DatabaseAppProps {
   readonly onRemovePropertyFromAll?: (field: string) => void;
   /** Called to clear (set to null/empty) a property's values across all records. */
   readonly onClearPropertyFromAll?: (field: string) => void;
+  /** Called to rename an option value across all records' frontmatter. */
+  readonly onRenameOption?: (field: string, oldName: string, newName: string) => void;
+  /** Called to delete an option value from all records' frontmatter. */
+  readonly onDeleteOption?: (field: string, optionName: string) => void;
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -77,7 +81,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
   const {
     schema, records, onCellChange, onNewRecord, onOpenNote,
     onSchemaChange, onAddPropertyToAll, onRemovePropertyFromAll,
-    onClearPropertyFromAll,
+    onClearPropertyFromAll, onRenameOption, onDeleteOption,
   } = props;
 
   const [activeViewId, setActiveViewId] = useState<string>(
@@ -222,7 +226,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
   const handleCloseModal = useCallback(() => { setModalState({ mode: "closed" }); }, []);
 
   /** Save a new or edited column — updates schema AND adds property to all files (for truly new ones). */
-  const handleSaveColumn = useCallback((column: ColumnDefinition) => {
+  const handleSaveColumn = useCallback((column: ColumnDefinition, renames?: ReadonlyMap<string, string>) => {
     if (modalState.mode === "edit") {
       const oldCol = schema.columns.find((c) => c.id === modalState.columnId);
       if (oldCol && oldCol.type !== column.type && !isSameGroup(oldCol.type, column.type)) {
@@ -237,6 +241,12 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         // Same group (or same type) — just update schema, data migrates naturally
         const newSchema = updateColumn(schema, modalState.columnId, column);
         onSchemaChange(newSchema);
+        // Propagate any option renames to pages
+        if (renames && renames.size > 0) {
+          for (const [oldName, newName] of renames) {
+            onRenameOption?.(column.id, oldName, newName);
+          }
+        }
       }
     } else if (modalState.mode === "add-existing") {
       // Property already exists in frontmatter — just add column to schema
@@ -249,7 +259,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
       onSchemaChange(newSchema);
     }
     setModalState({ mode: "closed" });
-  }, [schema, modalState, onSchemaChange, onAddPropertyToAll, onClearPropertyFromAll]);
+  }, [schema, modalState, onSchemaChange, onAddPropertyToAll, onClearPropertyFromAll, onRenameOption]);
 
   /** Add a new option to a select/multi-select column's schema. */
   const handleAddOption = useCallback((columnId: string, value: string, color: ColorKey) => {
@@ -261,6 +271,12 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     const newSchema = updateColumn(schema, columnId, { options: newOptions });
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
+
+  /** Delete a single option from the currently-edited column and propagate to pages. */
+  const handleDeleteOptionFromModal = useCallback((optionName: string) => {
+    if (modalState.mode !== "edit") return;
+    onDeleteOption?.(modalState.columnId, optionName);
+  }, [modalState, onDeleteOption]);
 
   /** Delete a column — updates schema AND removes property from all files. */
   const handleDeleteColumn = useCallback(() => {
@@ -371,6 +387,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
           column={editingColumn}
           existingIds={existingIds}
           onSave={handleSaveColumn}
+          onDeleteOption={modalState.mode === "edit" ? handleDeleteOptionFromModal : undefined}
           onDelete={modalState.mode === "edit" ? handleDeleteColumn : undefined}
           onClose={handleCloseModal}
         />

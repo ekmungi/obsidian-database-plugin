@@ -9,6 +9,7 @@ import { updateFrontmatter, removeFrontmatterField } from "../data/frontmatter-i
 import { indexFile } from "../data/file-indexer";
 import { parseSchema, createDefaultSchema } from "../engine/schema-manager";
 import { getYamlGroup } from "../engine/type-groups";
+import { renameOptionInValue, removeOptionFromValue } from "../engine/option-operations";
 import { DatabaseApp } from "./components/database-app";
 
 export const DATABASE_VIEW_TYPE = "database-view";
@@ -233,6 +234,8 @@ export class DatabaseView extends ItemView {
         onAddPropertyToAll: this.handleAddPropertyToAll,
         onRemovePropertyFromAll: this.handleRemovePropertyFromAll,
         onClearPropertyFromAll: this.handleClearPropertyFromAll,
+        onRenameOption: this.handleRenameOption,
+        onDeleteOption: this.handleDeleteOption,
       }),
       this.renderRoot
     );
@@ -401,6 +404,51 @@ export class DatabaseView extends ItemView {
         await this.app.vault.modify(file, newContent);
       } catch (err) {
         console.error(`Database Plugin: Failed to clear "${field}" in ${record.id}`, err);
+      }
+    }
+    await this.indexRecords();
+    this.renderApp();
+  };
+
+  /** Rename an option value across all records' frontmatter. */
+  private handleRenameOption = async (
+    field: string, oldName: string, newName: string
+  ): Promise<void> => {
+    for (const record of this.records) {
+      try {
+        const val = record.values[field];
+        if (val === null || val === undefined) continue;
+        const updated = renameOptionInValue(val, oldName, newName);
+        if (updated === val) continue;
+        const file = this.app.vault.getAbstractFileByPath(record.id);
+        if (!(file instanceof TFile)) continue;
+        const content = await this.app.vault.read(file);
+        const newContent = updateFrontmatter(content, field, updated);
+        await this.app.vault.modify(file, newContent);
+      } catch (err) {
+        console.error(`Database Plugin: Failed to rename option "${oldName}" in ${record.id}`, err);
+      }
+    }
+    await this.indexRecords();
+    this.renderApp();
+  };
+
+  /** Remove an option value from all records' frontmatter. */
+  private handleDeleteOption = async (
+    field: string, optionName: string
+  ): Promise<void> => {
+    for (const record of this.records) {
+      try {
+        const val = record.values[field];
+        if (val === null || val === undefined) continue;
+        const updated = removeOptionFromValue(val, optionName);
+        const file = this.app.vault.getAbstractFileByPath(record.id);
+        if (!(file instanceof TFile)) continue;
+        const content = await this.app.vault.read(file);
+        const newContent = updateFrontmatter(content, field, updated);
+        await this.app.vault.modify(file, newContent);
+      } catch (err) {
+        console.error(`Database Plugin: Failed to delete option "${optionName}" in ${record.id}`, err);
       }
     }
     await this.indexRecords();
