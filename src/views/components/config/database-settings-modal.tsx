@@ -2,14 +2,14 @@
  *  Reuses the shared modal CSS classes from column-config-modal. */
 
 import { h } from "preact";
-import { useState, useCallback } from "preact/hooks";
+import { useState, useCallback, useEffect } from "preact/hooks";
 import type { DatabaseSchema } from "../../../types/schema";
 
 interface DatabaseSettingsModalProps {
   /** Current database schema (read-only reference for initial values). */
   readonly schema: DatabaseSchema;
   /** Called with the updated fields on save. */
-  readonly onSave: (updates: { name?: string; templateFolder?: string }) => void;
+  readonly onSave: (updates: { name?: string; templateFolder?: string; dbViewType?: string }) => void;
   /** Called to close the modal without saving. */
   readonly onClose: () => void;
 }
@@ -30,10 +30,11 @@ export function DatabaseSettingsModal({
   const [templateFolder, setTemplateFolder] = useState(
     schema.templateFolder ?? "",
   );
+  const [dbViewType, setDbViewType] = useState(schema.dbViewType ?? "");
 
   /** Persist changes and close. */
   const handleSave = useCallback(() => {
-    const updates: { name?: string; templateFolder?: string } = {};
+    const updates: { name?: string; templateFolder?: string; dbViewType?: string } = {};
 
     if (name.trim() && name.trim() !== schema.name) {
       updates.name = name.trim();
@@ -42,9 +43,13 @@ export function DatabaseSettingsModal({
     if (trimmedFolder !== (schema.templateFolder ?? "")) {
       updates.templateFolder = trimmedFolder || undefined;
     }
+    const trimmedViewType = dbViewType.trim();
+    if (trimmedViewType !== (schema.dbViewType ?? "")) {
+      updates.dbViewType = trimmedViewType || undefined;
+    }
 
     onSave(updates);
-  }, [name, templateFolder, schema, onSave]);
+  }, [name, templateFolder, dbViewType, schema, onSave]);
 
   /** Close on backdrop click. */
   const handleBackdropClick = useCallback(
@@ -57,6 +62,19 @@ export function DatabaseSettingsModal({
     },
     [onClose],
   );
+
+  /** Close on Escape key. */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [onClose]);
 
   return (
     <div class="database-modal-overlay" onClick={handleBackdropClick}>
@@ -104,6 +122,30 @@ export function DatabaseSettingsModal({
               }}
             >
               Folder containing note templates for new records.
+            </div>
+          </div>
+
+          {/* Database view type filter */}
+          <div class="database-form-group">
+            <label class="database-form-label">Database View Type</label>
+            <input
+              class="database-form-input"
+              type="text"
+              value={dbViewType}
+              onInput={(e) =>
+                setDbViewType((e.target as HTMLInputElement).value)
+              }
+              placeholder="e.g. projects, tasks, contacts"
+            />
+            <div
+              style={{
+                fontSize: "var(--font-ui-smaller)",
+                color: "var(--text-muted)",
+                marginTop: "4px",
+              }}
+            >
+              Only show files where db-view-type matches this value. Leave empty
+              to show all files.
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 /** Obsidian ItemView subclass that hosts the database UI (Preact root). */
 
-import { ItemView, TFile, TFolder, WorkspaceLeaf } from "obsidian";
+import { ItemView, TFile, TFolder, TAbstractFile, WorkspaceLeaf } from "obsidian";
 import { h, render } from "preact";
 import type DatabasePlugin from "../main";
 import type { DatabaseSchema, CellValue } from "../types";
@@ -35,6 +35,7 @@ export class DatabaseView extends ItemView {
   }
 
   getDisplayText(): string {
+    if (this.schema?.name) return this.schema.name;
     if (this.folderPath) {
       return this.folderPath.split("/").pop() ?? "Database View";
     }
@@ -78,6 +79,12 @@ export class DatabaseView extends ItemView {
     if (typeof state.folderPath === "string") {
       this.folderPath = state.folderPath;
     }
+    // When opened via a .dbview file click, derive folderPath from the file path
+    if (typeof state.file === "string" && state.file.endsWith(".dbview")) {
+      const parts = state.file.split("/");
+      parts.pop(); // remove the filename
+      this.folderPath = parts.join("/");
+    }
     await this.onOpen();
     await super.setState(state, result);
   }
@@ -110,6 +117,7 @@ export class DatabaseView extends ItemView {
     await this.indexRecords();
     this.syncSchemaOptionsFromRecords();
     await this.syncPropertyTypesToObsidian();
+    await this.ensureDbviewFile();
   }
 
   /** Discover select/multi-select option values from frontmatter that aren't in schema yet. */
@@ -232,6 +240,21 @@ export class DatabaseView extends ItemView {
     }
   }
 
+  /** Ensure a .dbview entry point file exists in the database folder. */
+  private async ensureDbviewFile(): Promise<void> {
+    if (!this.folderPath || !this.schema) return;
+    const name = this.schema.name || this.folderPath.split("/").pop() || "Database";
+    const filePath = `${this.folderPath}/${name}.dbview`;
+    const existing = this.app.vault.getAbstractFileByPath(filePath);
+    if (!existing) {
+      try {
+        await this.app.vault.create(filePath, this.folderPath);
+      } catch {
+        // File may already exist or folder may be read-only — ignore
+      }
+    }
+  }
+
   /** Index all markdown files in the database folder. */
   private async indexRecords(): Promise<void> {
     if (!this.folderPath) return;
@@ -256,6 +279,15 @@ export class DatabaseView extends ItemView {
     this.records = indexed;
   }
 
+  /** Get all folder paths in the vault for autocomplete inputs. */
+  private getVaultFolderPaths(): readonly string[] {
+    return this.app.vault.getAllLoadedFiles()
+      .filter((f: TAbstractFile): f is TFolder => f instanceof TFolder)
+      .map((f) => f.path)
+      .filter((p) => p !== "/")
+      .sort();
+  }
+
   /** Render the Preact app into the container. */
   private renderApp(): void {
     if (!this.renderRoot || !this.schema) return;
@@ -273,6 +305,7 @@ export class DatabaseView extends ItemView {
         onClearPropertyFromAll: this.handleClearPropertyFromAll,
         onRenameOption: this.handleRenameOption,
         onDeleteOption: this.handleDeleteOption,
+        folderPaths: this.getVaultFolderPaths(),
       }),
       this.renderRoot
     );
@@ -335,8 +368,14 @@ export class DatabaseView extends ItemView {
 
       // Build initial content with default frontmatter from schema columns
       let content = "---\n";
+      // Auto-inject db-view-type when schema has dbViewType configured
+      if (this.schema.dbViewType) {
+        content += `db-view-type: ${this.schema.dbViewType}\n`;
+      }
       for (const col of this.schema.columns) {
         if (col.type === "file" || col.type === "rollup" || col.type === "formula") continue;
+        // Skip db-view-type if already injected above
+        if (col.id === "db-view-type" && this.schema.dbViewType) continue;
         switch (col.type) {
           case "checkbox": content += `${col.id}: false\n`; break;
           case "number": content += `${col.id}: 0\n`; break;
@@ -385,6 +424,8 @@ export class DatabaseView extends ItemView {
 
     await this.app.vault.adapter.write(schemaPath, content);
     await this.syncPropertyTypesToObsidian();
+    // Update the tab title to reflect any name change
+    this.leaf.updateHeader();
     this.renderApp();
   };
 

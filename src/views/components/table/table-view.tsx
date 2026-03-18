@@ -12,6 +12,7 @@ interface TableViewProps {
   readonly schema: DatabaseSchema;
   readonly records: readonly DatabaseRecord[];
   readonly sort: readonly SortRule[];
+  readonly hiddenColumns?: readonly string[];
   readonly onCellChange: (recordId: string, field: string, value: CellValue) => void;
   readonly onSort: (columnId: string, shiftKey: boolean) => void;
   readonly onClearSort?: () => void;
@@ -43,9 +44,14 @@ export function TableView({
   onAddColumn,
   onEditColumn,
   onAddOption,
+  hiddenColumns,
 }: TableViewProps) {
-  /** Get visible columns (all columns for now; hidden column support can use view config). */
-  const visibleColumns = useMemo(() => schema.columns, [schema.columns]);
+  /** Get visible columns — filter out hidden columns from the active view config. */
+  const visibleColumns = useMemo(() => {
+    if (!hiddenColumns || hiddenColumns.length === 0) return schema.columns;
+    const hiddenSet = new Set(hiddenColumns);
+    return schema.columns.filter((c) => !hiddenSet.has(c.id));
+  }, [schema.columns, hiddenColumns]);
 
   /** Handle cell change, forwarding record ID. */
   const handleCellChange = useCallback(

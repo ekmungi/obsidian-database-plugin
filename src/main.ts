@@ -1,7 +1,10 @@
 /** Main entry point for the Obsidian Database Plugin. */
 
-import { Plugin, TFolder, WorkspaceLeaf } from "obsidian";
+import { Plugin, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import { DATABASE_VIEW_TYPE, DatabaseView } from "./views/database-view";
+
+/** File extension for database view entry points visible in the file explorer. */
+const DBVIEW_EXTENSION = "dbview";
 
 export default class DatabasePlugin extends Plugin {
   async onload(): Promise<void> {
@@ -9,6 +12,9 @@ export default class DatabasePlugin extends Plugin {
       DATABASE_VIEW_TYPE,
       (leaf: WorkspaceLeaf) => new DatabaseView(leaf, this)
     );
+
+    // Register .dbview extension so clicking it in the explorer opens our view
+    this.registerExtensions([DBVIEW_EXTENSION], DATABASE_VIEW_TYPE);
 
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {

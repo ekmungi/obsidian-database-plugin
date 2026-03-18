@@ -6,6 +6,22 @@
 import type { DatabaseRecord, CellValue, FilterRule, SortRule } from "../types";
 
 /**
+ * Filter records by the well-known `db-view-type` frontmatter property.
+ * When dbViewType is set in the schema, only records whose `db-view-type`
+ * value exactly matches are included. When not set, all records pass through.
+ * @param records - The records to filter (not mutated).
+ * @param dbViewType - The schema's dbViewType value (undefined = no filter).
+ * @returns A new array of matching records, or the original array if no filter.
+ */
+export function filterByDbViewType(
+  records: readonly DatabaseRecord[],
+  dbViewType: string | undefined
+): readonly DatabaseRecord[] {
+  if (!dbViewType) return records;
+  return records.filter((r) => r.values["db-view-type"] === dbViewType);
+}
+
+/**
  * Check whether a cell value is empty (null, undefined, or empty string/array).
  * @param value - The cell value to check.
  * @returns True if the value is considered empty.

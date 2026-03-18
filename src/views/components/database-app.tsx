@@ -7,7 +7,7 @@ import type {
   FilterRule, ColumnDefinition, ColumnType, ColorKey,
 } from "../../types";
 import type { DatabaseRecord } from "../../types/record";
-import { filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
+import { filterByDbViewType, filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
 import { addColumn, removeColumn, updateColumn } from "../../engine/schema-manager";
 import { isSameGroup } from "../../engine/type-groups";
 import { pickNextColor } from "../../engine/color-cycle";
@@ -35,6 +35,8 @@ export interface DatabaseAppProps {
   readonly onRenameOption?: (field: string, oldName: string, newName: string) => void;
   /** Called to delete an option value from all records' frontmatter. */
   readonly onDeleteOption?: (field: string, optionName: string) => void;
+  /** All vault folder paths for autocomplete inputs. */
+  readonly folderPaths?: readonly string[];
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -82,7 +84,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
   const {
     schema, records, onCellChange, onNewRecord, onOpenNote,
     onSchemaChange, onAddPropertyToAll, onRemovePropertyFromAll,
-    onClearPropertyFromAll, onRenameOption, onDeleteOption,
+    onClearPropertyFromAll, onRenameOption, onDeleteOption, folderPaths,
   } = props;
 
   const [activeViewId, setActiveViewId] = useState<string>(
@@ -104,8 +106,14 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     [schema.views, activeViewId]
   );
 
+  /** Records after source-level db-view-type filter (before search/view filters). */
+  const sourceFilteredRecords = useMemo(
+    () => filterByDbViewType(records, schema.dbViewType),
+    [records, schema.dbViewType]
+  );
+
   const processedRecords = useMemo(() => {
-    let result = records;
+    let result = sourceFilteredRecords;
     if (searchQuery.trim()) {
       result = searchRecords(result, searchQuery);
     }
@@ -117,7 +125,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
       result = sortRecords(result, sort);
     }
     return result;
-  }, [records, searchQuery, activeView, sort, userFilters]);
+  }, [sourceFilteredRecords, searchQuery, activeView, sort, userFilters]);
 
   /** Sort handler — plain click replaces sort, Shift+click adds to multi-sort. */
   const handleSort = useCallback((columnId: string, shiftKey: boolean) => {
@@ -156,12 +164,36 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
   const handleFilterChange = useCallback((filters: readonly FilterRule[]) => { setUserFilters(filters); }, []);
   const handleNewRecord = useCallback(() => { onNewRecord(null); }, [onNewRecord]);
 
+  /** Toggle a column's visibility in the active view's hiddenColumns. */
+  const handleToggleColumnVisibility = useCallback((columnId: string) => {
+    if (!activeView) return;
+    const currentHidden = activeView.hiddenColumns ?? [];
+    const isHidden = currentHidden.includes(columnId);
+    const updatedHidden = isHidden
+      ? currentHidden.filter((id) => id !== columnId)
+      : [...currentHidden, columnId];
+    const updatedView = { ...activeView, hiddenColumns: updatedHidden };
+    const updatedViews = schema.views.map((v) => v.id === activeView.id ? updatedView : v);
+    onSchemaChange({ ...schema, views: updatedViews });
+  }, [activeView, schema, onSchemaChange]);
+
+  /** Save settings from the toolbar settings dropdown. */
+  const handleSettingsSave = useCallback((updates: { name?: string; templateFolder?: string; dbViewType?: string }) => {
+    const updated = {
+      ...schema,
+      ...(updates.name !== undefined ? { name: updates.name } : {}),
+      ...(updates.templateFolder !== undefined ? { templateFolder: updates.templateFolder || undefined } : {}),
+      ...(updates.dbViewType !== undefined ? { dbViewType: updates.dbViewType || undefined } : {}),
+    };
+    onSchemaChange(updated);
+  }, [schema, onSchemaChange]);
+
   /* ── Discover existing frontmatter properties not in schema ── */
 
   const undiscoveredProperties = useMemo(() => {
     const schemaIds = new Set(schema.columns.map((c) => c.id));
     const propMap = new Map<string, CellValue[]>();
-    for (const record of records) {
+    for (const record of sourceFilteredRecords) {
       for (const [key, val] of Object.entries(record.values)) {
         if (schemaIds.has(key)) continue;
         if (!propMap.has(key)) propMap.set(key, []);
@@ -172,7 +204,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
       id,
       guessedType: guessColumnType(values),
     }));
-  }, [records, schema.columns]);
+  }, [sourceFilteredRecords, schema.columns]);
 
   const [showAddMenu, setShowAddMenu] = useState(false);
 
@@ -313,19 +345,24 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     <div class="database-view-container">
       <TableToolbar
         schema={schema}
-        records={records}
+        records={sourceFilteredRecords}
         activeViewId={activeView.id}
         onViewChange={handleViewChange}
         onNewRecord={handleNewRecord}
         onSearch={handleSearch}
         onFilterChange={handleFilterChange}
-        onClearSort={handleClearSort}
-        sortCount={sort.length}
+        sort={sort}
+        onSortChange={setSort}
+        onSettingsSave={handleSettingsSave}
+        folderPaths={folderPaths}
+        hiddenColumns={activeView.hiddenColumns}
+        onToggleColumnVisibility={handleToggleColumnVisibility}
       />
       {renderActiveView(activeView, {
         schema,
         records: processedRecords,
         sort,
+        hiddenColumns: activeView.hiddenColumns,
         onCellChange,
         onOpenNote,
         onSort: handleSort,
@@ -403,6 +440,7 @@ interface RenderParams {
   readonly schema: DatabaseSchema;
   readonly records: readonly DatabaseRecord[];
   readonly sort: readonly SortRule[];
+  readonly hiddenColumns?: readonly string[];
   readonly onCellChange: (recordId: string, field: string, value: CellValue) => void;
   readonly onOpenNote: (record: DatabaseRecord) => void;
   readonly onSort: (columnId: string, shiftKey: boolean) => void;
@@ -421,6 +459,7 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           schema={params.schema}
           records={params.records}
           sort={params.sort}
+          hiddenColumns={params.hiddenColumns}
           onCellChange={params.onCellChange}
           onSort={params.onSort}
           onOpenNote={params.onOpenNote}

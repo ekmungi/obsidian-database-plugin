@@ -7,6 +7,7 @@ import { describe, it, expect } from "vitest";
 import type { TFile } from "obsidian";
 import type { DatabaseRecord, FilterRule, SortRule } from "../../types";
 import {
+  filterByDbViewType,
   filterRecords,
   sortRecords,
   groupRecords,
@@ -37,6 +38,63 @@ const records: readonly DatabaseRecord[] = [
   makeRecord("3", "Charlie", { age: 35, status: "active", city: "NYC" }),
   makeRecord("4", "Diana", { age: null, status: null, city: "" }),
 ];
+
+describe("filterByDbViewType", () => {
+  const viewTypeRecords: readonly DatabaseRecord[] = [
+    makeRecord("1", "Project A", { "db-view-type": "projects", title: "A" }),
+    makeRecord("2", "Meeting 1", { "db-view-type": "meetings", title: "M1" }),
+    makeRecord("3", "Project B", { "db-view-type": "projects", title: "B" }),
+    makeRecord("4", "No Type", { title: "NT" }),
+    makeRecord("5", "Empty Type", { "db-view-type": "", title: "ET" }),
+    makeRecord("6", "Null Type", { "db-view-type": null, title: "NullT" }),
+  ];
+
+  it("returns all records when dbViewType is undefined", () => {
+    expect(filterByDbViewType(viewTypeRecords, undefined)).toBe(viewTypeRecords);
+  });
+
+  it("returns all records when dbViewType is empty string", () => {
+    expect(filterByDbViewType(viewTypeRecords, "")).toBe(viewTypeRecords);
+  });
+
+  it("filters to matching records when dbViewType is set", () => {
+    const result = filterByDbViewType(viewTypeRecords, "projects");
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("Project A");
+    expect(result[1].name).toBe("Project B");
+  });
+
+  it("excludes records without db-view-type property", () => {
+    const result = filterByDbViewType(viewTypeRecords, "projects");
+    expect(result.every((r) => r.values["db-view-type"] === "projects")).toBe(true);
+  });
+
+  it("excludes records with empty db-view-type", () => {
+    const result = filterByDbViewType(viewTypeRecords, "projects");
+    expect(result.find((r) => r.name === "Empty Type")).toBeUndefined();
+  });
+
+  it("excludes records with null db-view-type", () => {
+    const result = filterByDbViewType(viewTypeRecords, "projects");
+    expect(result.find((r) => r.name === "Null Type")).toBeUndefined();
+  });
+
+  it("is case-sensitive", () => {
+    const result = filterByDbViewType(viewTypeRecords, "Projects");
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns empty array when no records match", () => {
+    const result = filterByDbViewType(viewTypeRecords, "nonexistent");
+    expect(result).toHaveLength(0);
+  });
+
+  it("does not mutate the input array", () => {
+    const copy = [...viewTypeRecords];
+    filterByDbViewType(viewTypeRecords, "projects");
+    expect(viewTypeRecords).toEqual(copy);
+  });
+});
 
 describe("filterRecords", () => {
   it("returns all records when no filters", () => {

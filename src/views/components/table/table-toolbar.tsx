@@ -2,7 +2,7 @@
 
 import { h } from "preact";
 import { useState, useCallback, useEffect, useRef } from "preact/hooks";
-import type { DatabaseSchema, ViewType, ColumnDefinition, FilterRule, FilterOperator } from "../../../types/schema";
+import type { DatabaseSchema, ViewType, ColumnDefinition, FilterRule, FilterOperator, SortRule, SortDirection } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
 
 /** Props for the TableToolbar component. */
@@ -14,8 +14,12 @@ interface TableToolbarProps {
   readonly onNewRecord: () => void;
   readonly onSearch: (query: string) => void;
   readonly onFilterChange?: (filters: readonly FilterRule[]) => void;
-  readonly onClearSort?: () => void;
-  readonly sortCount?: number;
+  readonly sort?: readonly SortRule[];
+  readonly onSortChange?: (sort: readonly SortRule[]) => void;
+  readonly onSettingsSave?: (updates: { name?: string; templateFolder?: string; dbViewType?: string }) => void;
+  readonly hiddenColumns?: readonly string[];
+  readonly onToggleColumnVisibility?: (columnId: string) => void;
+  readonly folderPaths?: readonly string[];
 }
 
 /** SVG icon components for each view type — monochrome, inherits currentColor. */
@@ -74,13 +78,27 @@ export function TableToolbar({
   onNewRecord,
   onSearch,
   onFilterChange,
-  onClearSort,
-  sortCount,
+  sort,
+  onSortChange,
+  onSettingsSave,
+  hiddenColumns,
+  onToggleColumnVisibility,
+  folderPaths,
 }: TableToolbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [filters, setFilters] = useState<FilterRule[]>([]);
   const filterContainerRef = useRef<HTMLDivElement>(null);
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const columnDropdownRef = useRef<HTMLDivElement>(null);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
+  const settingsDropdownRef = useRef<HTMLDivElement>(null);
+  const [settingsName, setSettingsName] = useState(schema.name);
+  const [settingsTemplate, setSettingsTemplate] = useState(schema.templateFolder ?? "");
+  const [settingsDbViewType, setSettingsDbViewType] = useState(schema.dbViewType ?? "");
+  const [showFolderSuggestions, setShowFolderSuggestions] = useState(false);
 
   /** Handle search input changes. */
   const handleSearchInput = useCallback(
@@ -115,15 +133,112 @@ export function TableToolbar({
     };
   }, [showFilterDropdown]);
 
+  /** Close column visibility dropdown on click-outside or Escape. */
+  useEffect(() => {
+    if (!showColumnDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (columnDropdownRef.current && !columnDropdownRef.current.contains(e.target as Node)) {
+        setShowColumnDropdown(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowColumnDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("keydown", handleKey, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("keydown", handleKey, true);
+    };
+  }, [showColumnDropdown]);
+
+  /** Close sort dropdown on click-outside or Escape. */
+  useEffect(() => {
+    if (!showSortDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowSortDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("keydown", handleKey, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("keydown", handleKey, true);
+    };
+  }, [showSortDropdown]);
+
+  /** Close settings dropdown on click-outside or Escape. */
+  useEffect(() => {
+    if (!showSettingsDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(e.target as Node)) {
+        setShowSettingsDropdown(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowSettingsDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside, true);
+    document.addEventListener("keydown", handleKey, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("keydown", handleKey, true);
+    };
+  }, [showSettingsDropdown]);
+
+  /** Sync settings state when schema changes externally. */
+  useEffect(() => {
+    setSettingsName(schema.name);
+    setSettingsTemplate(schema.templateFolder ?? "");
+    setSettingsDbViewType(schema.dbViewType ?? "");
+  }, [schema.name, schema.templateFolder, schema.dbViewType]);
+
+  /** Save settings and close dropdown. */
+  const handleSettingsSave = useCallback(() => {
+    if (!onSettingsSave) return;
+    const updates: { name?: string; templateFolder?: string; dbViewType?: string } = {};
+    if (settingsName.trim() && settingsName.trim() !== schema.name) {
+      updates.name = settingsName.trim();
+    }
+    const trimmedFolder = settingsTemplate.trim();
+    if (trimmedFolder !== (schema.templateFolder ?? "")) {
+      updates.templateFolder = trimmedFolder || undefined;
+    }
+    const trimmedViewType = settingsDbViewType.trim();
+    if (trimmedViewType !== (schema.dbViewType ?? "")) {
+      updates.dbViewType = trimmedViewType || undefined;
+    }
+    onSettingsSave(updates);
+    setShowSettingsDropdown(false);
+  }, [settingsName, settingsTemplate, settingsDbViewType, schema, onSettingsSave]);
+
   /** Clear the search input. */
   const handleClearSearch = useCallback(() => {
     setSearchQuery("");
     onSearch("");
   }, [onSearch]);
 
-  /** Add a new blank filter rule. */
+  /** Add a new blank filter rule — picks the first column not already used. */
   const handleAddFilter = useCallback(() => {
-    const firstCol = schema.columns.find((c) => c.type !== "file");
+    const usedColumns = new Set(filters.map((f) => f.column));
+    const firstCol = schema.columns.find((c) => c.type !== "file" && !usedColumns.has(c.id))
+      ?? schema.columns.find((c) => c.type !== "file");
     if (!firstCol) return;
     const newFilter: FilterRule = { column: firstCol.id, operator: "contains", value: "" };
     const updated = [...filters, newFilter];
@@ -189,6 +304,7 @@ export function TableToolbar({
   }, [records]);
 
   const filterableColumns = schema.columns.filter((c) => c.type !== "file");
+  const sortableColumns = schema.columns;
   const activeFilterCount = filters.length;
 
   return (
@@ -219,15 +335,23 @@ export function TableToolbar({
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Search input */}
+      {/* Search input with magnifying glass icon */}
       <div style={{ position: "relative", display: "flex", alignItems: "center", flexShrink: 0 }}>
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          style={{ position: "absolute", left: "6px", opacity: 0.35, pointerEvents: "none" }}
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
         <input
           type="text"
-          placeholder="Search..."
+          placeholder=""
           value={searchQuery}
           onInput={handleSearchInput}
           style={{
-            padding: "4px 8px",
+            padding: "4px 8px 4px 24px",
             border: "1px solid var(--background-modifier-border)",
             borderRadius: "var(--radius-s)",
             background: "var(--background-primary)",
@@ -247,15 +371,116 @@ export function TableToolbar({
         )}
       </div>
 
-      {/* Clear sort button — resets to name ascending */}
-      {onClearSort && sortCount && sortCount > 0 && (
-        <button
-          onClick={onClearSort}
-          title="Clear sort (reset to Name ascending)"
-          style={{ flexShrink: 0 }}
-        >
-          <span>Clear sort</span>
-        </button>
+      {/* Sort button + dropdown */}
+      {onSortChange && (
+        <div ref={sortDropdownRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setShowSortDropdown(!showSortDropdown)}
+            style={(sort ?? []).length > 0 ? { color: "var(--interactive-accent)" } : undefined}
+            title={(sort ?? []).length > 0 ? `Sort (${(sort ?? []).length} rule${(sort ?? []).length > 1 ? "s" : ""})` : "Sort records"}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="8" y1="4" x2="8" y2="20" />
+              <polyline points="4 8 8 4 12 8" />
+              <line x1="16" y1="4" x2="16" y2="20" />
+              <polyline points="12 16 16 20 20 16" />
+            </svg>
+          </button>
+          {showSortDropdown && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                zIndex: 50,
+                minWidth: "320px",
+                background: "var(--background-primary)",
+                border: "1px solid var(--background-modifier-border)",
+                borderRadius: "var(--radius-m)",
+                boxShadow: "var(--shadow-s)",
+                padding: "8px",
+              }}
+            >
+              {(sort ?? []).length === 0 && (
+                <div style={{ padding: "4px 8px", fontSize: "12px", color: "var(--text-muted)" }}>
+                  No sort rules. Click below to add one.
+                </div>
+              )}
+              {(sort ?? []).map((rule, idx) => {
+                const usedByOthers = new Set((sort ?? []).filter((_, i) => i !== idx).map((s) => s.column));
+                const availableSortCols = sortableColumns.filter((c) => !usedByOthers.has(c.id) || c.id === rule.column);
+                return (
+                <div key={idx} style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)", width: "16px", textAlign: "center", flexShrink: 0 }}>
+                    {idx === 0 ? "" : "then"}
+                  </span>
+                  <select
+                    class="database-form-select"
+                    style={{ flex: 1, padding: "3px 4px", fontSize: "12px" }}
+                    value={rule.column}
+                    onChange={(e) => {
+                      const updated = (sort ?? []).map((s, i) =>
+                        i === idx ? { ...s, column: (e.target as HTMLSelectElement).value } : s
+                      );
+                      onSortChange(updated);
+                    }}
+                  >
+                    {availableSortCols.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    class="database-form-select"
+                    style={{ width: "90px", padding: "3px 4px", fontSize: "12px" }}
+                    value={rule.dir}
+                    onChange={(e) => {
+                      const updated = (sort ?? []).map((s, i) =>
+                        i === idx ? { ...s, dir: (e.target as HTMLSelectElement).value as SortDirection } : s
+                      );
+                      onSortChange(updated);
+                    }}
+                  >
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      const updated = (sort ?? []).filter((_, i) => i !== idx);
+                      onSortChange(updated.length > 0 ? updated : [{ column: "name", dir: "asc" }]);
+                    }}
+                    style={{ padding: "2px 6px", color: "var(--text-error)", flexShrink: 0 }}
+                    title="Remove sort rule"
+                  >
+                    x
+                  </button>
+                </div>
+                );
+              })}
+              <button
+                onClick={() => {
+                  const firstCol = sortableColumns.find(
+                    (c) => !(sort ?? []).some((s) => s.column === c.id)
+                  ) ?? sortableColumns[0];
+                  if (!firstCol) return;
+                  onSortChange([...(sort ?? []), { column: firstCol.id, dir: "asc" }]);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "4px 8px",
+                  marginTop: "4px",
+                  border: "1px dashed var(--background-modifier-border)",
+                  borderRadius: "var(--radius-s)",
+                  background: "transparent",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                + Add sort
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Filter button + dropdown */}
@@ -263,11 +488,13 @@ export function TableToolbar({
         <button
           onClick={() => setShowFilterDropdown(!showFilterDropdown)}
           style={activeFilterCount > 0 ? { color: "var(--interactive-accent)" } : undefined}
-          title="Filter records"
+          title={activeFilterCount > 0 ? `Filter (${activeFilterCount} active)` : "Filter records"}
         >
-          <span>Filter</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
           {activeFilterCount > 0 && (
-            <span style={{ marginLeft: "2px", fontSize: "0.8em" }}>({activeFilterCount})</span>
+            <span style={{ marginLeft: "2px", fontSize: "0.75em" }}>{activeFilterCount}</span>
           )}
         </button>
 
@@ -291,6 +518,8 @@ export function TableToolbar({
               const ops = getOperatorsForColumn(col);
               const needsValue = !NO_VALUE_OPS.has(filter.operator);
               const isSelect = col?.type === "select" || col?.type === "multi-select";
+              const usedByOtherFilters = new Set(filters.filter((_, i) => i !== idx).map((f) => f.column));
+              const availableFilterCols = filterableColumns.filter((c) => !usedByOtherFilters.has(c.id) || c.id === filter.column);
 
               return (
                 <div key={idx} style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
@@ -300,7 +529,7 @@ export function TableToolbar({
                     value={filter.column}
                     onChange={(e) => handleUpdateFilter(idx, { column: (e.target as HTMLSelectElement).value })}
                   >
-                    {filterableColumns.map((c) => (
+                    {availableFilterCols.map((c) => (
                       <option key={c.id} value={c.id}>{c.label}</option>
                     ))}
                   </select>
@@ -373,6 +602,194 @@ export function TableToolbar({
           </div>
         )}
       </div>
+
+      {/* Column visibility dropdown */}
+      {onToggleColumnVisibility && (
+        <div ref={columnDropdownRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setShowColumnDropdown(!showColumnDropdown)}
+            title="Toggle column visibility"
+            style={{
+              color: (hiddenColumns ?? []).length > 0 ? "var(--interactive-accent)" : undefined,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+          {showColumnDropdown && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                zIndex: 50,
+                minWidth: "200px",
+                background: "var(--background-primary)",
+                border: "1px solid var(--background-modifier-border)",
+                borderRadius: "var(--radius-m)",
+                boxShadow: "var(--shadow-s)",
+                padding: "4px",
+              }}
+            >
+              {schema.columns.filter((c) => c.type !== "file").map((col) => {
+                const isVisible = !(hiddenColumns ?? []).includes(col.id);
+                return (
+                  <label
+                    key={col.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "4px 8px",
+                      cursor: "pointer",
+                      borderRadius: "var(--radius-s)",
+                      fontSize: "var(--font-ui-small)",
+                    }}
+                    class="template-picker-item"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isVisible}
+                      onChange={() => onToggleColumnVisibility(col.id)}
+                    />
+                    <span style={{ opacity: isVisible ? 1 : 0.5 }}>{col.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Settings gear dropdown */}
+      {onSettingsSave && (
+        <div ref={settingsDropdownRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
+            title="Database settings"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+          {showSettingsDropdown && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                zIndex: 50,
+                minWidth: "260px",
+                background: "var(--background-primary)",
+                border: "1px solid var(--background-modifier-border)",
+                borderRadius: "var(--radius-m)",
+                boxShadow: "var(--shadow-s)",
+                padding: "8px",
+              }}
+            >
+              <div style={{ marginBottom: "6px" }}>
+                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>Database Name</label>
+                <input
+                  class="database-form-input"
+                  type="text"
+                  value={settingsName}
+                  onInput={(e) => setSettingsName((e.target as HTMLInputElement).value)}
+                  style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
+                />
+              </div>
+              <div style={{ marginBottom: "6px", position: "relative" }}>
+                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>Template Folder</label>
+                <input
+                  class="database-form-input"
+                  type="text"
+                  value={settingsTemplate}
+                  onInput={(e) => {
+                    setSettingsTemplate((e.target as HTMLInputElement).value);
+                    setShowFolderSuggestions(true);
+                  }}
+                  onFocus={() => setShowFolderSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowFolderSuggestions(false), 150)}
+                  placeholder="path/to/templates"
+                  style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
+                />
+                {showFolderSuggestions && folderPaths && (() => {
+                  const query = settingsTemplate.toLowerCase();
+                  const matches = folderPaths.filter((p) => p.toLowerCase().includes(query)).slice(0, 8);
+                  if (matches.length === 0) return null;
+                  return (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 60,
+                        background: "var(--background-primary)",
+                        border: "1px solid var(--background-modifier-border)",
+                        borderRadius: "var(--radius-s)",
+                        boxShadow: "var(--shadow-s)",
+                        maxHeight: "150px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {matches.map((path) => (
+                        <div
+                          key={path}
+                          onClick={() => {
+                            setSettingsTemplate(path);
+                            setShowFolderSuggestions(false);
+                          }}
+                          style={{
+                            padding: "3px 6px",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                          }}
+                          class="template-picker-item"
+                        >
+                          {path}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div style={{ marginBottom: "8px" }}>
+                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>View Type Filter</label>
+                <input
+                  class="database-form-input"
+                  type="text"
+                  value={settingsDbViewType}
+                  onInput={(e) => setSettingsDbViewType((e.target as HTMLInputElement).value)}
+                  placeholder="e.g. projects, tasks"
+                  style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
+                />
+                <div style={{ fontSize: "10px", color: "var(--text-faint)", marginTop: "2px" }}>
+                  Only show files with matching db-view-type.
+                </div>
+              </div>
+              <button
+                onClick={handleSettingsSave}
+                style={{
+                  width: "100%",
+                  padding: "4px 8px",
+                  background: "var(--interactive-accent)",
+                  color: "var(--text-on-accent)",
+                  border: "none",
+                  borderRadius: "var(--radius-s)",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+              >
+                Save
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* New record button — prominent style */}
       <button
