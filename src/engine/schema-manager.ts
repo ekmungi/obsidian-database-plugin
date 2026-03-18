@@ -107,7 +107,9 @@ export function parseSchema(jsonString: string): DatabaseSchema {
   }
   const schema = raw as DatabaseSchema;
   validateSchema(schema);
-  return schema;
+  // Default version to 1 for schemas without a version field
+  const versioned = schema.version ? schema : { ...schema, version: 1 };
+  return versioned;
 }
 
 /**

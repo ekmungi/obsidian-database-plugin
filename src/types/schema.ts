@@ -138,4 +138,6 @@ export interface DatabaseSchema {
   readonly templateFolder?: string;
   readonly columns: readonly ColumnDefinition[];
   readonly views: readonly ViewConfig[];
+  /** Schema format version — defaults to 1 on load if missing. */
+  readonly version?: number;
 }

@@ -206,6 +206,20 @@ describe("removeView", () => {
   });
 });
 
+describe("schema versioning", () => {
+  it("adds version 1 when parsing schema without version", () => {
+    const json = JSON.stringify({ name: "Test", source: ".", columns: [], views: [] });
+    const schema = parseSchema(json);
+    expect(schema.version).toBe(1);
+  });
+
+  it("preserves existing version", () => {
+    const json = JSON.stringify({ name: "Test", source: ".", columns: [], views: [], version: 2 });
+    const schema = parseSchema(json);
+    expect(schema.version).toBe(2);
+  });
+});
+
 describe("createDefaultSchema", () => {
   it("creates a schema with file, text columns and a table view", () => {
     const schema = createDefaultSchema("My DB");
