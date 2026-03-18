@@ -76,33 +76,11 @@ export function SelectCell({ value, options, allRecordValues, onChange, onAddOpt
     ? options.find((o) => o.value === value)
     : null;
 
-  /** Split options into in-use and available sections. */
-  const { inUseOptions, availableOptions } = useMemo(() => {
-    if (!allRecordValues || allRecordValues.length === 0) {
-      return { inUseOptions: options, availableOptions: [] as readonly SelectOption[] };
-    }
-    const inUseValues = new Set(allRecordValues);
-    const inUse = options.filter((o) => inUseValues.has(o.value));
-    const available = options.filter((o) => !inUseValues.has(o.value));
-    return { inUseOptions: inUse, availableOptions: available };
-  }, [options, allRecordValues]);
-
-  /** Render a single option row. */
-  const renderOption = (opt: SelectOption) => (
-    <div
-      key={opt.value}
-      style={{
-        padding: "4px 8px",
-        cursor: "pointer",
-        borderRadius: "var(--radius-s)",
-      }}
-      onClick={() => handleSelect(opt.value)}
-    >
-      <span class={`select-tag select-tag--${opt.color}`}>
-        {opt.value}
-      </span>
-    </div>
-  );
+  /** Split options into selected (current value) and unselected. */
+  const { unselectedOptions } = useMemo(() => {
+    const unsel = options.filter((o) => o.value !== value);
+    return { unselectedOptions: unsel };
+  }, [options, value]);
 
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
@@ -131,23 +109,60 @@ export function SelectCell({ value, options, allRecordValues, onChange, onAddOpt
             padding: "4px",
           }}
         >
-          {inUseOptions.map(renderOption)}
-          {availableOptions.length > 0 && inUseOptions.length > 0 && (
+          {/* Selected option at top with X to deselect */}
+          {selectedOption && (
+            <div
+              style={{
+                padding: "4px 8px",
+                cursor: "pointer",
+                borderRadius: "var(--radius-s)",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "var(--background-modifier-hover)",
+              }}
+              onClick={() => handleSelect(selectedOption.value)}
+            >
+              <span class={`select-tag select-tag--${selectedOption.color}`} style={{ flex: 1 }}>
+                {selectedOption.value}
+              </span>
+              <span
+                style={{
+                  fontSize: "var(--font-ui-small)",
+                  color: "var(--text-normal)",
+                  opacity: 0.7,
+                  padding: "0 4px",
+                  lineHeight: 1,
+                }}
+                title="Deselect"
+              >
+                &#10005;
+              </span>
+            </div>
+          )}
+          {/* Separator */}
+          {selectedOption && unselectedOptions.length > 0 && (
             <div style={{
               borderTop: "1px solid var(--background-modifier-border)",
               margin: "4px 0",
-              paddingTop: "2px",
-            }}>
-              <div style={{
-                padding: "2px 8px",
-                fontSize: "var(--font-ui-smaller)",
-                color: "var(--text-muted)",
-              }}>
-                Available
-              </div>
-            </div>
+            }} />
           )}
-          {availableOptions.map(renderOption)}
+          {/* Unselected options */}
+          {unselectedOptions.map((opt) => (
+            <div
+              key={opt.value}
+              style={{
+                padding: "4px 8px",
+                cursor: "pointer",
+                borderRadius: "var(--radius-s)",
+              }}
+              onClick={() => handleSelect(opt.value)}
+            >
+              <span class={`select-tag select-tag--${opt.color}`}>
+                {opt.value}
+              </span>
+            </div>
+          ))}
           {onAddOption && (
             <div style={{
               borderTop: "1px solid var(--background-modifier-border)",
