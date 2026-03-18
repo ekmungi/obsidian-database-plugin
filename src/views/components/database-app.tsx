@@ -9,6 +9,7 @@ import type {
 import type { DatabaseRecord } from "../../types/record";
 import { filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
 import { addColumn, removeColumn, updateColumn } from "../../engine/schema-manager";
+import { isSameGroup } from "../../engine/type-groups";
 import { TableView } from "./table/table-view";
 import { KanbanView } from "./kanban/kanban-view";
 import { CalendarView } from "./calendar/calendar-view";
@@ -222,20 +223,33 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
 
   /** Save a new or edited column — updates schema AND adds property to all files (for truly new ones). */
   const handleSaveColumn = useCallback((column: ColumnDefinition) => {
-    let newSchema: DatabaseSchema;
     if (modalState.mode === "edit") {
-      newSchema = updateColumn(schema, modalState.columnId, column);
+      const oldCol = schema.columns.find((c) => c.id === modalState.columnId);
+      if (oldCol && oldCol.type !== column.type && !isSameGroup(oldCol.type, column.type)) {
+        // Cross-group type change — strip options if moving away from select types, clear values
+        const cleaned = column.type === "select" || column.type === "multi-select"
+          ? column
+          : { ...column, options: undefined };
+        const newSchema = updateColumn(schema, modalState.columnId, cleaned);
+        onSchemaChange(newSchema);
+        onClearPropertyFromAll?.(column.id);
+      } else {
+        // Same group (or same type) — just update schema, data migrates naturally
+        const newSchema = updateColumn(schema, modalState.columnId, column);
+        onSchemaChange(newSchema);
+      }
     } else if (modalState.mode === "add-existing") {
       // Property already exists in frontmatter — just add column to schema
-      newSchema = addColumn(schema, column);
+      const newSchema = addColumn(schema, column);
+      onSchemaChange(newSchema);
     } else {
-      newSchema = addColumn(schema, column);
+      const newSchema = addColumn(schema, column);
       // Brand new property — add to all existing MD files
       onAddPropertyToAll?.(column.id, getDefaultValue(column.type));
+      onSchemaChange(newSchema);
     }
-    onSchemaChange(newSchema);
     setModalState({ mode: "closed" });
-  }, [schema, modalState, onSchemaChange, onAddPropertyToAll]);
+  }, [schema, modalState, onSchemaChange, onAddPropertyToAll, onClearPropertyFromAll]);
 
   /** Delete a column — updates schema AND removes property from all files. */
   const handleDeleteColumn = useCallback(() => {

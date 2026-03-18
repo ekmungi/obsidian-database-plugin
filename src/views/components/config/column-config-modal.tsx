@@ -10,6 +10,7 @@ import type {
   SelectOption,
   RollupFunction,
 } from "../../../types/schema";
+import { isSameGroup } from "../../../engine/type-groups";
 import { ColorPicker } from "../shared/color-picker";
 
 /** All column types available in the type dropdown. */
@@ -82,6 +83,7 @@ export function ColumnConfigModal({
   const [formula, setFormula] = useState(column?.formula ?? "");
   const [idManuallyEdited, setIdManuallyEdited] = useState(isEditing);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showTypeChangeConfirm, setShowTypeChangeConfirm] = useState(false);
   const [colorPickerIdx, setColorPickerIdx] = useState<number | null>(null);
   const [error, setError] = useState("");
 
@@ -103,9 +105,10 @@ export function ColumnConfigModal({
     setId((e.target as HTMLInputElement).value);
   }, []);
 
-  /** Handle type dropdown change — reset type-specific state. */
+  /** Handle type dropdown change — reset type-specific state and confirmation. */
   const handleTypeChange = useCallback((e: Event) => {
     setType((e.target as HTMLSelectElement).value as ColumnType);
+    setShowTypeChangeConfirm(false);
   }, []);
 
   /* ── Select options management ─────────────── */
@@ -161,15 +164,15 @@ export function ColumnConfigModal({
 
   /* ── Validation and save ──────────────────── */
 
-  /** Validate inputs and call onSave with the assembled ColumnDefinition. */
-  const handleSave = useCallback(() => {
+  /** Build the ColumnDefinition from current form state. */
+  const buildColumnDef = useCallback((): ColumnDefinition | null => {
     if (!label.trim()) {
       setError("Label is required.");
-      return;
+      return null;
     }
     if (!id.trim()) {
       setError("ID is required.");
-      return;
+      return null;
     }
     /* Check ID uniqueness (skip current column's own ID when editing). */
     const otherIds = isEditing
@@ -177,7 +180,7 @@ export function ColumnConfigModal({
       : existingIds;
     if (otherIds.includes(id)) {
       setError("A column with this ID already exists.");
-      return;
+      return null;
     }
 
     const base: ColumnDefinition = { id, type, label: label.trim() };
@@ -194,11 +197,28 @@ export function ColumnConfigModal({
     const withFormula =
       type === "formula" ? { ...withRollup, formula } : withRollup;
 
-    onSave(withFormula);
+    return withFormula;
   }, [
     label, id, type, options, target, relationColumn,
-    targetColumn, rollupFunction, formula, existingIds, isEditing, column, onSave,
+    targetColumn, rollupFunction, formula, existingIds, isEditing, column,
   ]);
+
+  /** Validate inputs and call onSave with the assembled ColumnDefinition. */
+  const handleSave = useCallback(() => {
+    const colDef = buildColumnDef();
+    if (!colDef) return;
+
+    // Intercept cross-group type changes with confirmation
+    if (isEditing && column && column.type !== colDef.type && !isSameGroup(column.type, colDef.type)) {
+      if (!showTypeChangeConfirm) {
+        setShowTypeChangeConfirm(true);
+        return;
+      }
+    }
+
+    setShowTypeChangeConfirm(false);
+    onSave(colDef);
+  }, [buildColumnDef, isEditing, column, showTypeChangeConfirm, onSave]);
 
   /** Handle delete with confirmation step. */
   const handleDelete = useCallback(() => {
@@ -240,6 +260,18 @@ export function ColumnConfigModal({
           {error && (
             <div style={{ color: "var(--text-error)", marginBottom: "8px", fontSize: "var(--font-ui-small)" }}>
               {error}
+            </div>
+          )}
+
+          {showTypeChangeConfirm && (
+            <div style={{
+              background: "var(--background-modifier-error)",
+              padding: "8px 12px",
+              borderRadius: "var(--radius-s)",
+              marginBottom: "8px",
+              fontSize: "var(--font-ui-small)",
+            }}>
+              Changing type will clear values in all pages. Click Save again to confirm.
             </div>
           )}
 
