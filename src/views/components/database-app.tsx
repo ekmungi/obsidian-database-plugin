@@ -261,13 +261,21 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     setModalState({ mode: "closed" });
   }, [schema, modalState, onSchemaChange, onAddPropertyToAll, onClearPropertyFromAll, onRenameOption]);
 
-  /** Add a new option to a select/multi-select column's schema. */
-  const handleAddOption = useCallback((columnId: string, value: string, color: ColorKey) => {
+  /** Color sequence for auto-assigning colors to new options. */
+  const COLOR_SEQUENCE: readonly ColorKey[] = [
+    "blue", "green", "purple", "orange", "red",
+    "teal", "yellow", "pink", "brown", "gray",
+  ];
+
+  /** Add a new option to a select/multi-select column's schema with auto-cycling color. */
+  const handleAddOption = useCallback((columnId: string, value: string, _color: ColorKey) => {
     const col = schema.columns.find((c) => c.id === columnId);
     if (!col) return;
     const existingOptions = col.options ?? [];
     if (existingOptions.some((o) => o.value === value)) return;
-    const newOptions = [...existingOptions, { value, color }];
+    // Auto-cycle: pick the next color in sequence based on how many options exist
+    const autoColor = COLOR_SEQUENCE[existingOptions.length % COLOR_SEQUENCE.length];
+    const newOptions = [...existingOptions, { value, color: autoColor }];
     const newSchema = updateColumn(schema, columnId, { options: newOptions });
     onSchemaChange(newSchema);
   }, [schema, onSchemaChange]);
