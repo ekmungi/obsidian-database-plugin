@@ -19,18 +19,18 @@ const ALL_COLORS: readonly ColorKey[] = [
   "brown",
 ] as const;
 
-/** Swatch preview colors — muted palette with semantic pairings. */
+/** Swatch preview colors — saturated pastels with semantic text pairings. */
 const COLOR_VALUES: Record<ColorKey, string> = {
-  gray: "#C8CDD4",
-  red: "#E8C5C5",
-  orange: "#E8C9B8",
-  yellow: "#EDD9B0",
-  green: "#C3D5C3",
-  teal: "#B8D8D8",
-  blue: "#C5CDE8",
-  purple: "#D8CCEB",
-  pink: "#E0C8D8",
-  brown: "#D4D9B8",
+  gray: "#A8B4C8",
+  red: "#E09898",
+  orange: "#E0A880",
+  yellow: "#E0C470",
+  green: "#90C890",
+  teal: "#80C8C8",
+  blue: "#90A8D8",
+  purple: "#B898D8",
+  pink: "#D890B8",
+  brown: "#B8C488",
 };
 
 interface ColorPickerProps {
