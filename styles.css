@@ -1,0 +1,532 @@
+/* Obsidian Database Plugin — base styles using Obsidian CSS variables.
+   All colors/fonts/spacing inherit from the active Obsidian theme. */
+
+/* ── Container ─────────────────────────────── */
+.database-view-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-interface);
+  color: var(--text-normal);
+  background: var(--background-primary);
+}
+
+.database-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+/* ── Toolbar ───────────────────────────────── */
+.database-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  flex-shrink: 0;
+}
+
+.database-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+
+.database-toolbar button:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* ── Table View ────────────────────────────── */
+.database-table {
+  flex: 1;
+  overflow: auto;
+}
+
+.database-table table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.database-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 12px;
+  text-align: left;
+  font-weight: 500;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.database-table th:hover {
+  background: var(--background-modifier-hover);
+}
+
+.database-table th:hover .column-edit-btn {
+  opacity: 0.6 !important;
+}
+
+.database-table th .column-edit-btn:hover {
+  opacity: 1 !important;
+}
+
+.database-table td {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--background-modifier-border-focus);
+  font-size: var(--font-ui-medium);
+  min-height: 32px;
+}
+
+.database-table tr:hover td {
+  background: var(--background-modifier-hover);
+}
+
+/* ── Cell Editors ──────────────────────────── */
+.cell-editor {
+  width: 100%;
+  padding: 2px 4px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-family: inherit;
+  outline: none;
+}
+
+.cell-display {
+  cursor: pointer;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Select Tags ───────────────────────────── */
+.select-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Select option colors — vivid backgrounds, black text */
+.select-tag.select-tag--gray { background: #B8B8B4; color: #000 !important; }
+.select-tag.select-tag--red { background: #E88E8E; color: #000 !important; }
+.select-tag.select-tag--orange { background: #F0A96E; color: #000 !important; }
+.select-tag.select-tag--yellow { background: #F5D76E; color: #000 !important; }
+.select-tag.select-tag--green { background: #8EC78E; color: #000 !important; }
+.select-tag.select-tag--teal { background: #6EC4D6; color: #000 !important; }
+.select-tag.select-tag--blue { background: #6EAAD6; color: #000 !important; }
+.select-tag.select-tag--purple { background: #B89AD6; color: #000 !important; }
+.select-tag.select-tag--pink { background: #E88EBE; color: #000 !important; }
+.select-tag.select-tag--brown { background: #C4A882; color: #000 !important; }
+
+/* ── Checkbox ──────────────────────────────── */
+.cell-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--interactive-accent);
+}
+
+/* ── Kanban View ───────────────────────────── */
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  overflow-x: auto;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.kanban-column {
+  min-width: 260px;
+  max-width: 320px;
+  flex-shrink: 0;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.kanban-column-count {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 8px 8px;
+  overflow-y: auto;
+  min-height: 40px;
+}
+
+.kanban-card {
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  cursor: grab;
+  transition: box-shadow 0.15s ease;
+}
+
+.kanban-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.kanban-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.kanban-card-title {
+  font-weight: 500;
+  font-size: var(--font-ui-medium);
+  color: var(--text-normal);
+  margin-bottom: 4px;
+}
+
+.kanban-card-field {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.kanban-card-field-label {
+  font-weight: 500;
+}
+
+.kanban-card-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  font-size: var(--font-ui-smaller);
+  margin-right: 4px;
+}
+
+.kanban-column.drag-over {
+  background: var(--background-modifier-hover);
+  outline: 2px dashed var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+/* ── Calendar View ─────────────────────────── */
+.calendar-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.calendar-nav-title {
+  font-weight: 600;
+  font-size: var(--font-ui-medium);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--background-modifier-border);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.calendar-day-header {
+  padding: 4px;
+  text-align: center;
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+}
+
+.calendar-day {
+  min-height: 80px;
+  padding: 4px;
+  background: var(--background-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-day--other-month {
+  opacity: 0.4;
+}
+
+.calendar-day--today {
+  background: var(--background-primary-alt);
+}
+
+.calendar-day-number {
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.calendar-event {
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  border-radius: var(--radius-s);
+  font-size: 11px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-event:hover {
+  filter: brightness(1.1);
+}
+
+/* ── Color Picker ──────────────────────────── */
+.color-picker-popup {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  padding: 8px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+}
+
+.color-picker-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.1s;
+}
+
+.color-picker-swatch:hover,
+.color-picker-swatch.active {
+  border-color: var(--interactive-accent);
+}
+
+/* ── Shared ────────────────────────────────── */
+.database-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: var(--text-muted);
+  gap: 12px;
+}
+
+.database-link {
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.database-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Modal ────────────────────────────────── */
+.database-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.database-modal {
+  background: var(--background-primary);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-l);
+  width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.database-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-weight: 600;
+}
+
+.database-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.database-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.database-form-group {
+  margin-bottom: 12px;
+}
+
+.database-form-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.database-form-input,
+.database-form-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  box-sizing: border-box;
+}
+
+.database-form-input:focus,
+.database-form-select:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.database-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+
+.database-btn--primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.database-btn--primary:hover {
+  filter: brightness(1.1);
+}
+
+.database-btn--danger {
+  background: transparent;
+  color: var(--text-error);
+}
+
+.database-btn--danger:hover {
+  background: rgba(255, 85, 85, 0.1);
+}
+
+.database-btn--ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.database-btn--ghost:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+/* ── Template Picker ──────────────────────── */
+.template-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.template-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 200px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  box-shadow: var(--shadow-s);
+  padding: 4px;
+  margin-top: 4px;
+}
+
+.template-picker-item {
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+}
+
+.template-picker-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* ── Option Editor ────────────────────────── */
+.option-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.option-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-editor-row .color-picker-swatch {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}

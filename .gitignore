@@ -1,0 +1,27 @@
+# Build output
+main.js
+*.js.map
+
+# Dependencies
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+
+# Plan files
+PLAN.md
+
+# Superpowers
+.superpowers/
+
+# Environment
+.env
+.env.*
