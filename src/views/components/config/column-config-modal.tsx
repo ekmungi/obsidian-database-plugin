@@ -414,11 +414,11 @@ export function ColumnConfigModal({
               </div>
               {confirmDeleteOption && (
                 <div style={{
-                  color: "var(--text-error)",
+                  color: "var(--text-on-accent)",
                   fontSize: "var(--font-ui-smaller)",
                   marginTop: "4px",
                   padding: "4px 8px",
-                  background: "var(--background-modifier-error)",
+                  background: "var(--interactive-accent)",
                   borderRadius: "var(--radius-s)",
                 }}>
                   Click X again to delete "{confirmDeleteOption}" from all pages.
