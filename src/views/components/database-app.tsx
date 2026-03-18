@@ -27,6 +27,8 @@ export interface DatabaseAppProps {
   readonly onAddPropertyToAll?: (field: string, defaultValue: CellValue) => void;
   /** Called to remove a frontmatter field from all existing records. */
   readonly onRemovePropertyFromAll?: (field: string) => void;
+  /** Called to clear (set to null/empty) a property's values across all records. */
+  readonly onClearPropertyFromAll?: (field: string) => void;
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -74,6 +76,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
   const {
     schema, records, onCellChange, onNewRecord, onOpenNote,
     onSchemaChange, onAddPropertyToAll, onRemovePropertyFromAll,
+    onClearPropertyFromAll,
   } = props;
 
   const [activeViewId, setActiveViewId] = useState<string>(

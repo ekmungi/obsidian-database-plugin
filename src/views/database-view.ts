@@ -8,6 +8,7 @@ import type { DatabaseRecord } from "../types/record";
 import { updateFrontmatter, removeFrontmatterField } from "../data/frontmatter-io";
 import { indexFile } from "../data/file-indexer";
 import { parseSchema, createDefaultSchema } from "../engine/schema-manager";
+import { getYamlGroup } from "../engine/type-groups";
 import { DatabaseApp } from "./components/database-app";
 
 export const DATABASE_VIEW_TYPE = "database-view";
@@ -231,6 +232,7 @@ export class DatabaseView extends ItemView {
         onSchemaChange: this.handleSchemaChange,
         onAddPropertyToAll: this.handleAddPropertyToAll,
         onRemovePropertyFromAll: this.handleRemovePropertyFromAll,
+        onClearPropertyFromAll: this.handleClearPropertyFromAll,
       }),
       this.renderRoot
     );
@@ -379,6 +381,26 @@ export class DatabaseView extends ItemView {
         await this.app.vault.modify(file, newContent);
       } catch (err) {
         console.error(`Database Plugin: Failed to remove property "${field}" from ${record.id}`, err);
+      }
+    }
+    await this.indexRecords();
+    this.renderApp();
+  };
+
+  /** Clear values (set to null/empty) for a property across all records without removing the field. */
+  private handleClearPropertyFromAll = async (field: string): Promise<void> => {
+    const col = this.schema?.columns.find((c) => c.id === field);
+    if (!col) return;
+    const emptyValue = getYamlGroup(col.type) === "array-options" ? [] : null;
+    for (const record of this.records) {
+      try {
+        const file = this.app.vault.getAbstractFileByPath(record.id);
+        if (!(file instanceof TFile)) continue;
+        const content = await this.app.vault.read(file);
+        const newContent = updateFrontmatter(content, field, emptyValue);
+        await this.app.vault.modify(file, newContent);
+      } catch (err) {
+        console.error(`Database Plugin: Failed to clear "${field}" in ${record.id}`, err);
       }
     }
     await this.indexRecords();
