@@ -123,7 +123,8 @@ export function MultiSelectCell({
           <span
             style={{
               fontSize: "var(--font-ui-smaller)",
-              color: "var(--text-muted)",
+              color: "var(--text-normal)",
+              opacity: 0.7,
               padding: "0 2px",
               lineHeight: 1,
             }}
