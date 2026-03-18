@@ -132,17 +132,17 @@
   line-height: 1.4;
 }
 
-/* Select option colors — vivid backgrounds, black text */
-.select-tag.select-tag--gray { background: #B8B8B4; color: #000 !important; }
-.select-tag.select-tag--red { background: #E88E8E; color: #000 !important; }
-.select-tag.select-tag--orange { background: #F0A96E; color: #000 !important; }
-.select-tag.select-tag--yellow { background: #F5D76E; color: #000 !important; }
-.select-tag.select-tag--green { background: #8EC78E; color: #000 !important; }
-.select-tag.select-tag--teal { background: #6EC4D6; color: #000 !important; }
-.select-tag.select-tag--blue { background: #6EAAD6; color: #000 !important; }
-.select-tag.select-tag--purple { background: #B89AD6; color: #000 !important; }
-.select-tag.select-tag--pink { background: #E88EBE; color: #000 !important; }
-.select-tag.select-tag--brown { background: #C4A882; color: #000 !important; }
+/* Select option colors — muted backgrounds, dark semantic text */
+.select-tag.select-tag--gray { background: #C8CDD4; color: #2E3540 !important; }
+.select-tag.select-tag--red { background: #E8C5C5; color: #6B2C2C !important; }
+.select-tag.select-tag--orange { background: #E8C9B8; color: #6B3420 !important; }
+.select-tag.select-tag--yellow { background: #EDD9B0; color: #6B4A0E !important; }
+.select-tag.select-tag--green { background: #C3D5C3; color: #2E5230 !important; }
+.select-tag.select-tag--teal { background: #B8D8D8; color: #1C4E4E !important; }
+.select-tag.select-tag--blue { background: #C5CDE8; color: #3B4470 !important; }
+.select-tag.select-tag--purple { background: #D8CCEB; color: #4A2E7A !important; }
+.select-tag.select-tag--pink { background: #E0C8D8; color: #5A2E4E !important; }
+.select-tag.select-tag--brown { background: #D4D9B8; color: #3D4422 !important; }
 
 /* ── Checkbox ──────────────────────────────── */
 .cell-checkbox {

@@ -195,6 +195,40 @@ export class DatabaseView extends ItemView {
     }
   }
 
+  /**
+   * Remove a property type from .obsidian/types.json only if no other file in the vault uses it.
+   * Prevents breaking Obsidian's Properties editor for notes outside this database.
+   */
+  private async removePropertyTypeIfUnused(propertyId: string): Promise<void> {
+    // Check if any other markdown file in the vault has this property in frontmatter
+    const allFiles = this.app.vault.getMarkdownFiles();
+    const folderPrefix = this.folderPath ? this.folderPath + "/" : "";
+
+    for (const file of allFiles) {
+      // Skip files inside this database folder — they are being cleaned up
+      if (file.path.startsWith(folderPrefix)) continue;
+      const cache = this.app.metadataCache.getFileCache(file);
+      if (cache?.frontmatter && propertyId in cache.frontmatter) {
+        // Another file uses this property — do not remove from types.json
+        return;
+      }
+    }
+
+    // No other file uses it — safe to remove
+    const typesPath = ".obsidian/types.json";
+    try {
+      const content = await this.app.vault.adapter.read(typesPath);
+      const typesData = JSON.parse(content);
+      if (typesData.types && propertyId in typesData.types) {
+        delete typesData.types[propertyId];
+        await this.app.vault.adapter.write(typesPath, JSON.stringify(typesData, null, 2));
+        console.log(`Database Plugin: Removed unused property type "${propertyId}" from types.json`);
+      }
+    } catch {
+      // types.json not readable — nothing to clean up
+    }
+  }
+
   /** Index all markdown files in the database folder. */
   private async indexRecords(): Promise<void> {
     if (!this.folderPath) return;
@@ -371,7 +405,7 @@ export class DatabaseView extends ItemView {
     this.renderApp();
   };
 
-  /** Remove a frontmatter property from all existing records in the database folder. */
+  /** Remove a frontmatter property from all existing records and clean up types.json. */
   private handleRemovePropertyFromAll = async (
     field: string
   ): Promise<void> => {
@@ -386,6 +420,7 @@ export class DatabaseView extends ItemView {
         console.error(`Database Plugin: Failed to remove property "${field}" from ${record.id}`, err);
       }
     }
+    await this.removePropertyTypeIfUnused(field);
     await this.indexRecords();
     this.renderApp();
   };

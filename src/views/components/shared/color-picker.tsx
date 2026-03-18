@@ -19,19 +19,18 @@ const ALL_COLORS: readonly ColorKey[] = [
   "brown",
 ] as const;
 
-/** Map of color keys to their CSS color values for swatch rendering. */
-/** Swatch preview colors — match the vivid tag backgrounds. */
+/** Swatch preview colors — muted palette with semantic pairings. */
 const COLOR_VALUES: Record<ColorKey, string> = {
-  gray: "#B8B8B4",
-  red: "#E88E8E",
-  orange: "#F0A96E",
-  yellow: "#F5D76E",
-  green: "#8EC78E",
-  teal: "#6EC4D6",
-  blue: "#6EAAD6",
-  purple: "#B89AD6",
-  pink: "#E88EBE",
-  brown: "#C4A882",
+  gray: "#C8CDD4",
+  red: "#E8C5C5",
+  orange: "#E8C9B8",
+  yellow: "#EDD9B0",
+  green: "#C3D5C3",
+  teal: "#B8D8D8",
+  blue: "#C5CDE8",
+  purple: "#D8CCEB",
+  pink: "#E0C8D8",
+  brown: "#D4D9B8",
 };
 
 interface ColorPickerProps {

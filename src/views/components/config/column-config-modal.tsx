@@ -505,7 +505,7 @@ export function ColumnConfigModal({
               onClick={handleDelete}
               style={{ marginRight: "auto" }}
             >
-              {confirmDelete ? "Confirm delete?" : "Delete"}
+              {confirmDelete ? "Delete property and all data?" : "Delete"}
             </button>
           )}
           <button class="database-btn database-btn--ghost" onClick={onClose}>
@@ -522,18 +522,18 @@ export function ColumnConfigModal({
 
 /* ── Helpers ────────────────────────────────── */
 
-/** Map ColorKey to hex string for inline swatch styling. */
+/** Map ColorKey to hex string for inline swatch styling (muted palette). */
 const COLOR_HEX: Record<ColorKey, string> = {
-  gray: "#B8B8B4",
-  red: "#E88E8E",
-  orange: "#F0A96E",
-  yellow: "#F5D76E",
-  green: "#8EC78E",
-  teal: "#6EC4D6",
-  blue: "#6EAAD6",
-  purple: "#B89AD6",
-  pink: "#E88EBE",
-  brown: "#C4A882",
+  gray: "#C8CDD4",
+  red: "#E8C5C5",
+  orange: "#E8C9B8",
+  yellow: "#EDD9B0",
+  green: "#C3D5C3",
+  teal: "#B8D8D8",
+  blue: "#C5CDE8",
+  purple: "#D8CCEB",
+  pink: "#E0C8D8",
+  brown: "#D4D9B8",
 };
 
 /**
