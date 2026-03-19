@@ -16,7 +16,7 @@ interface TableToolbarProps {
   readonly onFilterChange?: (filters: readonly FilterRule[]) => void;
   readonly sort?: readonly SortRule[];
   readonly onSortChange?: (sort: readonly SortRule[]) => void;
-  readonly onSettingsSave?: (updates: { name?: string; templateFolder?: string; dbViewType?: string }) => void;
+  readonly onSettingsSave?: (updates: { name?: string; templateFolder?: string; dbViewType?: string; recursive?: boolean }) => void;
   readonly hiddenColumns?: readonly string[];
   readonly onToggleColumnVisibility?: (columnId: string) => void;
   readonly folderPaths?: readonly string[];
@@ -104,6 +104,7 @@ export function TableToolbar({
   const [settingsName, setSettingsName] = useState(schema.name);
   const [settingsTemplate, setSettingsTemplate] = useState(schema.templateFolder ?? "");
   const [settingsDbViewType, setSettingsDbViewType] = useState(schema.dbViewType ?? "");
+  const [settingsRecursive, setSettingsRecursive] = useState(schema.recursive ?? false);
   const [showFolderSuggestions, setShowFolderSuggestions] = useState(false);
 
   /** Handle search input changes. */
@@ -213,12 +214,13 @@ export function TableToolbar({
     setSettingsName(schema.name);
     setSettingsTemplate(schema.templateFolder ?? "");
     setSettingsDbViewType(schema.dbViewType ?? "");
-  }, [schema.name, schema.templateFolder, schema.dbViewType]);
+    setSettingsRecursive(schema.recursive ?? false);
+  }, [schema.name, schema.templateFolder, schema.dbViewType, schema.recursive]);
 
   /** Save settings and close dropdown. */
   const handleSettingsSave = useCallback(() => {
     if (!onSettingsSave) return;
-    const updates: { name?: string; templateFolder?: string; dbViewType?: string } = {};
+    const updates: { name?: string; templateFolder?: string; dbViewType?: string; recursive?: boolean } = {};
     if (settingsName.trim() && settingsName.trim() !== schema.name) {
       updates.name = settingsName.trim();
     }
@@ -230,9 +232,12 @@ export function TableToolbar({
     if (trimmedViewType !== (schema.dbViewType ?? "")) {
       updates.dbViewType = trimmedViewType || undefined;
     }
+    if (settingsRecursive !== (schema.recursive ?? false)) {
+      updates.recursive = settingsRecursive;
+    }
     onSettingsSave(updates);
     setShowSettingsDropdown(false);
-  }, [settingsName, settingsTemplate, settingsDbViewType, schema, onSettingsSave]);
+  }, [settingsName, settingsTemplate, settingsDbViewType, settingsRecursive, schema, onSettingsSave]);
 
   /** Clear the search input. */
   const handleClearSearch = useCallback(() => {
@@ -363,8 +368,8 @@ export function TableToolbar({
       <div style={{ position: "relative", display: "flex", alignItems: "center", flexShrink: 0 }}>
         <svg
           width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-          style={{ position: "absolute", left: "6px", opacity: 0.35, pointerEvents: "none" }}
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          style={{ position: "absolute", left: "6px", opacity: 0.45, pointerEvents: "none" }}
         >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -385,13 +390,21 @@ export function TableToolbar({
           }}
         />
         {searchQuery && (
-          <button
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
             onClick={handleClearSearch}
-            style={{ position: "absolute", right: "4px", padding: "2px" }}
+            style={{
+              position: "absolute",
+              right: "6px",
+              opacity: 0.45,
+              cursor: "pointer",
+            }}
             title="Clear search"
           >
-            x
-          </button>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         )}
       </div>
 
@@ -794,6 +807,24 @@ export function TableToolbar({
                   Only show files with matching db-view-type.
                 </div>
               </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "4px 0",
+                  marginBottom: "8px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={settingsRecursive}
+                  onChange={() => setSettingsRecursive(!settingsRecursive)}
+                />
+                <span>Include subfolders</span>
+              </label>
               <button
                 onClick={handleSettingsSave}
                 style={{

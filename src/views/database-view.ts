@@ -37,6 +37,8 @@ export class DatabaseView extends ItemView {
   private targetRecordsCache = new Map<string, readonly DatabaseRecord[]>();
   /** Watched target folder paths to avoid duplicate watchers. */
   private watchedTargetPaths = new Set<string>();
+  /** Pending backlink cleanups keyed by file path — cancelled if a create event arrives (external rename). */
+  private pendingCleanups = new Map<string, { timer: ReturnType<typeof setTimeout>; record: DatabaseRecord }>();
 
   /** Reload this view if it matches the given folder path. Called by other views for cross-view refresh. */
   public async reloadIfFolder(folderPath: string): Promise<void> {
@@ -329,7 +331,20 @@ export class DatabaseView extends ItemView {
     }
   }
 
-  /** Index all markdown files in the database folder. */
+  /** Recursively collect all .md files from a folder and its subfolders. */
+  private collectMdFiles(folder: TFolder): TFile[] {
+    const result: TFile[] = [];
+    for (const child of folder.children) {
+      if (child instanceof TFile && child.extension === "md") {
+        result.push(child);
+      } else if (child instanceof TFolder) {
+        result.push(...this.collectMdFiles(child));
+      }
+    }
+    return result;
+  }
+
+  /** Index all markdown files in the database folder (recursive when schema.recursive is true). */
   private async indexRecords(): Promise<void> {
     if (!this.folderPath) return;
 
@@ -339,9 +354,11 @@ export class DatabaseView extends ItemView {
       return;
     }
 
-    const mdFiles = folder.children.filter(
-      (f): f is TFile => f instanceof TFile && f.extension === "md"
-    );
+    const mdFiles = this.schema?.recursive
+      ? this.collectMdFiles(folder)
+      : folder.children.filter(
+          (f): f is TFile => f instanceof TFile && f.extension === "md"
+        );
 
     const indexed = await Promise.all(
       mdFiles.map(async (file) => {
@@ -366,7 +383,7 @@ export class DatabaseView extends ItemView {
 
   /**
    * Index .md files in a target folder and apply the target db's dbViewType filter.
-   * Results are cached in targetRecordsCache.
+   * Respects the target schema's recursive flag. Results are cached in targetRecordsCache.
    */
   private async loadTargetRecords(folderPath: string): Promise<void> {
     const folder = this.app.vault.getAbstractFileByPath(folderPath);
@@ -375,9 +392,23 @@ export class DatabaseView extends ItemView {
       return;
     }
 
-    const mdFiles = folder.children.filter(
-      (f): f is TFile => f instanceof TFile && f.extension === "md"
-    );
+    // Check if the target schema has recursive enabled
+    let targetRecursive = false;
+    const targetSchemaPath = `${folderPath}/${SCHEMA_FILENAME}`;
+    let targetSchema: DatabaseSchema | null = null;
+    try {
+      const schemaContent = await this.app.vault.adapter.read(targetSchemaPath);
+      targetSchema = parseSchema(schemaContent);
+      targetRecursive = targetSchema.recursive ?? false;
+    } catch {
+      // No target schema — use defaults
+    }
+
+    const mdFiles = targetRecursive
+      ? this.collectMdFiles(folder)
+      : folder.children.filter(
+          (f): f is TFile => f instanceof TFile && f.extension === "md"
+        );
 
     const indexed = await Promise.all(
       mdFiles.map(async (file) => {
@@ -388,11 +419,8 @@ export class DatabaseView extends ItemView {
 
     // Apply target db's dbViewType filter if configured
     let filtered: readonly DatabaseRecord[] = indexed;
-    const targetSchemaPath = `${folderPath}/${SCHEMA_FILENAME}`;
     try {
-      const schemaContent = await this.app.vault.adapter.read(targetSchemaPath);
-      const targetSchema = parseSchema(schemaContent);
-      if (targetSchema.dbViewType) {
+      if (targetSchema?.dbViewType) {
         filtered = filterByDbViewType(indexed, targetSchema.dbViewType);
       }
     } catch {
@@ -722,11 +750,16 @@ export class DatabaseView extends ItemView {
   ): Promise<void> => {
     if (!this.folderPath) return;
 
+    const recursiveChanged = this.schema?.recursive !== schema.recursive;
     this.schema = schema;
     const schemaPath = `${this.folderPath}/${SCHEMA_FILENAME}`;
     const content = JSON.stringify(schema, null, 2);
 
     await this.app.vault.adapter.write(schemaPath, content);
+    // Re-index when recursive flag changes (affects which files are included)
+    if (recursiveChanged) {
+      await this.indexRecords();
+    }
     await this.syncPropertyTypesToObsidian();
     // Auto-create reverse columns in target schemas for bidirectional relations
     await this.ensureBidirectionalReverseColumns();
@@ -998,6 +1031,47 @@ export class DatabaseView extends ItemView {
     }
   }
 
+  /**
+   * Cancel a pending backlink cleanup if a create event arrives shortly after a delete.
+   * This prevents backlink wipe when an external rename is detected as delete+create (e.g., OneDrive).
+   * Note: backlinks with the old name will be stale — this is a known limitation for external renames.
+   */
+  private cancelPendingCleanup(newRecord: DatabaseRecord): void {
+    if (!this.schema) return;
+
+    for (const [oldPath, pending] of this.pendingCleanups) {
+      // Check if the new record has similar relation links to the deleted one
+      const relationColumns = this.schema.columns.filter(
+        (c) => c.type === "relation" && c.bidirectional && c.reverseColumnId && c.target
+      );
+      const hasMatchingRelations = relationColumns.some((col) => {
+        const oldLinks = parseWikilinks(pending.record.values[col.id]);
+        const newLinks = parseWikilinks(newRecord.values[col.id]);
+        return oldLinks.length > 0 && oldLinks.length === newLinks.length &&
+          oldLinks.every((l) => newLinks.some((n) => n.toLowerCase() === l.toLowerCase()));
+      });
+
+      if (!hasMatchingRelations) continue;
+
+      // Cancel the cleanup — backlinks are preserved (though stale name)
+      clearTimeout(pending.timer);
+      this.pendingCleanups.delete(oldPath);
+      return;
+    }
+  }
+
+  /** Check whether a file path belongs to this database's folder (respects recursive mode). */
+  private isFileInDatabase(filePath: string): boolean {
+    if (!this.folderPath) return false;
+    if (this.schema?.recursive) {
+      return filePath.startsWith(this.folderPath + "/");
+    }
+    // Non-recursive: direct children only — parent folder must match exactly
+    const lastSlash = filePath.lastIndexOf("/");
+    const parentPath = lastSlash >= 0 ? filePath.substring(0, lastSlash) : "";
+    return parentPath === this.folderPath;
+  }
+
   /** Register file modification events to auto-refresh records. */
   private registerFileEvents(): void {
     this.registerEvent(
@@ -1005,7 +1079,7 @@ export class DatabaseView extends ItemView {
         if (
           file instanceof TFile &&
           file.extension === "md" &&
-          file.parent?.path === this.folderPath
+          this.isFileInDatabase(file.path)
         ) {
           const content = await this.app.vault.read(file);
           const updated = indexFile(file, content);
@@ -1027,10 +1101,15 @@ export class DatabaseView extends ItemView {
           if (isInFolder) {
             const deletedRecord = this.records.find((r) => r.id === file.path);
             if (deletedRecord) {
-              // Clean up bidirectional back-links for the deleted record
-              await this.cleanupBacklinksForRecord(deletedRecord);
               this.records = this.records.filter((r) => r.id !== file.path);
               this.renderApp();
+              // Delay backlink cleanup — if a create event arrives within 2s (external rename
+              // via OneDrive/cloud sync), we cancel cleanup and let the create handler take over.
+              const timer = setTimeout(async () => {
+                this.pendingCleanups.delete(file.path);
+                await this.cleanupBacklinksForRecord(deletedRecord);
+              }, 2000);
+              this.pendingCleanups.set(file.path, { timer, record: deletedRecord });
             }
           }
         }
@@ -1074,7 +1153,7 @@ export class DatabaseView extends ItemView {
         if (
           file instanceof TFile &&
           file.extension === "md" &&
-          file.parent?.path === this.folderPath
+          this.isFileInDatabase(file.path)
         ) {
           // Skip if we just created this file in handleNewRecord
           if (this.recentlyCreated.has(file.path)) {
@@ -1086,6 +1165,10 @@ export class DatabaseView extends ItemView {
           const content = await this.app.vault.read(file);
           const record = indexFile(file, content);
           this.records = [...this.records, record];
+
+          // Cancel pending backlink cleanup if this create matches a recent delete (external rename).
+          this.cancelPendingCleanup(record);
+
           this.renderApp();
         }
       })

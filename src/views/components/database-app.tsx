@@ -219,12 +219,13 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
 
   /** Save settings from the toolbar settings dropdown.
    *  Auto-hides the db-view-type column when dbViewType filter is set. */
-  const handleSettingsSave = useCallback((updates: { name?: string; templateFolder?: string; dbViewType?: string }) => {
+  const handleSettingsSave = useCallback((updates: { name?: string; templateFolder?: string; dbViewType?: string; recursive?: boolean }) => {
     let updated: DatabaseSchema = {
       ...schema,
       ...(updates.name !== undefined ? { name: updates.name } : {}),
       ...(updates.templateFolder !== undefined ? { templateFolder: updates.templateFolder || undefined } : {}),
       ...(updates.dbViewType !== undefined ? { dbViewType: updates.dbViewType || undefined } : {}),
+      ...(updates.recursive !== undefined ? { recursive: updates.recursive || undefined } : {}),
     };
     // When dbViewType is set: ensure db-view-type column exists in schema and auto-hide it
     if (updates.dbViewType) {

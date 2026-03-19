@@ -144,6 +144,8 @@ export interface DatabaseSchema {
   readonly views: readonly ViewConfig[];
   /** When set, only show files whose frontmatter `db-view-type` matches this value. */
   readonly dbViewType?: string;
+  /** When true, scan subfolders recursively for .md files instead of only direct children. */
+  readonly recursive?: boolean;
   /** Schema format version — defaults to 1 on load if missing. */
   readonly version?: number;
 }

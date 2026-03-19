@@ -19,6 +19,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Relations with picker** -- searchable dropdown for linking to notes in other database folders. Respects the target database's `dbViewType` filter. Create new entries directly from the picker.
 - **Bidirectional relations** -- per-column toggle that auto-creates the reverse column in the target database. Adding or removing a link automatically syncs the back-link. Deleting a relation column or record cleans up all back-links.
 - **Cross-view refresh** -- changes to relations, schema, or records automatically refresh any other open database view affected by the change.
+- **Recursive subfolder scanning** -- opt-in "Include subfolders" toggle in settings that scans the entire folder tree for records. Works with `dbViewType` filter. New records still create in the root folder. Relation pickers respect the target database's recursive setting.
 - **Row selection and bulk delete** -- checkbox on each row with select-all in the header. Soft red delete button appears in the toolbar when records are selected. Deleting cleans up all bidirectional back-links.
 - **Sort** -- click column headers to sort, Shift+click for multi-level sort. Sort dropdown for manual rule management.
 - **Filter** -- filter by any column with operators (is, is not, contains, is empty, etc.). Filter values come from your actual data.
