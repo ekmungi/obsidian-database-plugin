@@ -113,7 +113,7 @@ export function TableHeader({ columns, sort, onSort, onAddColumn, onEditColumn }
                     </span>
                   )}
                 </span>
-                {col.type !== "file" && onEditColumn && (
+                {onEditColumn && (
                   <span
                     style={{ opacity: 0, cursor: "pointer", fontSize: "0.8em", padding: "0 2px" }}
                     class="column-edit-btn"

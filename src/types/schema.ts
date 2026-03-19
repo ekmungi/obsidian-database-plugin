@@ -54,6 +54,10 @@ export interface ColumnDefinition {
   readonly target?: string;
   /** For relation columns: whether multiple values are allowed. */
   readonly multiple?: boolean;
+  /** For relation columns: whether to sync back-links to the target database. */
+  readonly bidirectional?: boolean;
+  /** For relation columns: the column ID in the target database for back-links. */
+  readonly reverseColumnId?: string;
   /** For rollup columns: the relation column to aggregate from. */
   readonly relationColumn?: string;
   /** For rollup columns: the target column in the related database. */

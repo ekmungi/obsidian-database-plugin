@@ -37,6 +37,16 @@ export interface DatabaseAppProps {
   readonly onDeleteOption?: (field: string, optionName: string) => void;
   /** All vault folder paths for autocomplete inputs. */
   readonly folderPaths?: readonly string[];
+  /** Target records cache keyed by folder path — for relation pickers. */
+  readonly targetRecordsByFolder?: ReadonlyMap<string, readonly DatabaseRecord[]>;
+  /** Called to clean up bidirectional back-links when a relation column is deleted. */
+  readonly onCleanupBidirectionalLinks?: (column: ColumnDefinition) => void;
+  /** Called to navigate to a note by name (for relation tag clicks). */
+  readonly onNavigateToNote?: (noteName: string) => void;
+  /** Called to rename a record's file. */
+  readonly onRenameFile?: (recordId: string, newName: string) => void;
+  /** Called to create a new record in a target relation folder. */
+  readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -85,6 +95,8 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     schema, records, onCellChange, onNewRecord, onOpenNote,
     onSchemaChange, onAddPropertyToAll, onRemovePropertyFromAll,
     onClearPropertyFromAll, onRenameOption, onDeleteOption, folderPaths,
+    targetRecordsByFolder, onCleanupBidirectionalLinks,
+    onNavigateToNote, onRenameFile, onCreateRelationRecord,
   } = props;
 
   const [activeViewId, setActiveViewId] = useState<string>(
@@ -177,16 +189,34 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     onSchemaChange({ ...schema, views: updatedViews });
   }, [activeView, schema, onSchemaChange]);
 
-  /** Save settings from the toolbar settings dropdown. */
+  /** Save settings from the toolbar settings dropdown.
+   *  Auto-hides the db-view-type column when dbViewType filter is set. */
   const handleSettingsSave = useCallback((updates: { name?: string; templateFolder?: string; dbViewType?: string }) => {
-    const updated = {
+    let updated: DatabaseSchema = {
       ...schema,
       ...(updates.name !== undefined ? { name: updates.name } : {}),
       ...(updates.templateFolder !== undefined ? { templateFolder: updates.templateFolder || undefined } : {}),
       ...(updates.dbViewType !== undefined ? { dbViewType: updates.dbViewType || undefined } : {}),
     };
+    // When dbViewType is set: ensure db-view-type column exists in schema and auto-hide it
+    if (updates.dbViewType) {
+      const hasColumn = updated.columns.some((c) => c.id === "db-view-type");
+      if (!hasColumn) {
+        updated = {
+          ...updated,
+          columns: [...updated.columns, { id: "db-view-type", type: "text" as const, label: "db view type" }],
+        };
+      }
+      if (activeView) {
+        const currentHidden = activeView.hiddenColumns ?? [];
+        if (!currentHidden.includes("db-view-type")) {
+          const updatedView = { ...activeView, hiddenColumns: [...currentHidden, "db-view-type"] };
+          updated = { ...updated, views: updated.views.map((v) => v.id === activeView.id ? updatedView : v) };
+        }
+      }
+    }
     onSchemaChange(updated);
-  }, [schema, onSchemaChange]);
+  }, [schema, activeView, onSchemaChange]);
 
   /* ── Discover existing frontmatter properties not in schema ── */
 
@@ -312,14 +342,19 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     onDeleteOption?.(modalState.columnId, optionName);
   }, [modalState, onDeleteOption]);
 
-  /** Delete a column — updates schema AND removes property from all files. */
+  /** Delete a column — updates schema, removes property from all files, cleans up back-links. */
   const handleDeleteColumn = useCallback(() => {
     if (modalState.mode !== "edit") return;
+    // Clean up bidirectional back-links before removing the column
+    const deletedCol = schema.columns.find((c) => c.id === modalState.columnId);
+    if (deletedCol && deletedCol.type === "relation" && deletedCol.bidirectional) {
+      onCleanupBidirectionalLinks?.(deletedCol);
+    }
     const newSchema = removeColumn(schema, modalState.columnId);
     onSchemaChange(newSchema);
     onRemovePropertyFromAll?.(modalState.columnId);
     setModalState({ mode: "closed" });
-  }, [schema, modalState, onSchemaChange, onRemovePropertyFromAll]);
+  }, [schema, modalState, onSchemaChange, onRemovePropertyFromAll, onCleanupBidirectionalLinks]);
 
   /** Get the column being edited or pre-filled for existing property. */
   const editingColumn = modalState.mode === "edit"
@@ -370,6 +405,10 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         onAddColumn: handleAddColumn,
         onEditColumn: handleEditColumn,
         onAddOption: handleAddOption,
+        targetRecordsByFolder,
+        onNavigateToNote,
+        onRenameFile,
+        onCreateRelationRecord,
       })}
       {showAddMenu && undiscoveredProperties.length > 0 && (
         <>
@@ -429,6 +468,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
           onDeleteOption={modalState.mode === "edit" ? handleDeleteOptionFromModal : undefined}
           onDelete={modalState.mode === "edit" ? handleDeleteColumn : undefined}
           onClose={handleCloseModal}
+          folderPaths={folderPaths}
         />
       )}
     </div>
@@ -448,6 +488,14 @@ interface RenderParams {
   readonly onAddColumn: () => void;
   readonly onEditColumn: (columnId: string) => void;
   readonly onAddOption: (columnId: string, value: string, color: ColorKey) => void;
+  /** Target records cache for relation pickers. */
+  readonly targetRecordsByFolder?: ReadonlyMap<string, readonly DatabaseRecord[]>;
+  /** Navigate to a note by name (for relation tag clicks). */
+  readonly onNavigateToNote?: (noteName: string) => void;
+  /** Rename a record's file. */
+  readonly onRenameFile?: (recordId: string, newName: string) => void;
+  /** Create a new record in a target relation folder. */
+  readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
 }
 
 /** Dispatches rendering to the correct view component based on view type. */
@@ -466,6 +514,10 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           onAddColumn={params.onAddColumn}
           onEditColumn={params.onEditColumn}
           onAddOption={params.onAddOption}
+          targetRecordsByFolder={params.targetRecordsByFolder}
+          onNavigateToNote={params.onNavigateToNote}
+          onRenameFile={params.onRenameFile}
+          onCreateRelationRecord={params.onCreateRelationRecord}
         />
       );
     case "kanban":

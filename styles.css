@@ -371,6 +371,23 @@
   text-decoration: underline;
 }
 
+.database-edit-icon {
+  opacity: 0;
+  cursor: pointer;
+  font-size: var(--font-ui-smaller);
+  padding: 0 2px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+tr:hover .database-edit-icon {
+  opacity: 0.4;
+}
+
+.database-edit-icon:hover {
+  opacity: 0.8 !important;
+}
+
 /* ── Modal ────────────────────────────────── */
 .database-modal-overlay {
   position: fixed;

@@ -93,6 +93,80 @@ export function resolveRelations(
 }
 
 /**
+ * Compute updates to remove stale back-links when relations are removed.
+ * Compares previous vs current linked names and returns updates for targets
+ * that should no longer link back to the source.
+ * @param previousNames - Note names that were previously linked.
+ * @param currentNames - Note names currently linked.
+ * @param sourceRecordName - Name of the source record (for back-link removal).
+ * @param targetColumnId - The column in target records holding back-links.
+ * @param targetRecords - All target records to check.
+ * @returns Array of update descriptors for records that need back-links removed.
+ */
+export function computeBidirectionalRemovals(
+  previousNames: readonly string[],
+  currentNames: readonly string[],
+  sourceRecordName: string,
+  targetColumnId: string,
+  targetRecords: readonly DatabaseRecord[]
+): readonly { recordId: string; field: string; value: CellValue }[] {
+  const currentSet = new Set(currentNames.map((n) => n.toLowerCase()));
+  const removedNames = previousNames.filter(
+    (n) => !currentSet.has(n.toLowerCase())
+  );
+
+  if (removedNames.length === 0) return [];
+
+  const removedSet = new Set(removedNames.map((n) => n.toLowerCase()));
+  const updates: { recordId: string; field: string; value: CellValue }[] = [];
+
+  for (const target of targetRecords) {
+    if (!removedSet.has(target.name.toLowerCase())) continue;
+
+    const existingBacklinks = parseWikilinks(target.values[targetColumnId]);
+    const hasBacklink = existingBacklinks.some(
+      (name) => name.toLowerCase() === sourceRecordName.toLowerCase()
+    );
+
+    if (!hasBacklink) continue;
+
+    // Remove the source back-link from the target
+    const existingValue = target.values[targetColumnId];
+    let newValue: CellValue;
+
+    if (Array.isArray(existingValue)) {
+      newValue = (existingValue as readonly string[]).filter((item) => {
+        const str = String(item).trim();
+        // Filter out empty/malformed entries and the removed back-link
+        if (!str || str === "[[]]" || str === "[]") return false;
+        const parsed = parseWikilink(str);
+        if (!parsed) return true;
+        return parsed.toLowerCase() !== sourceRecordName.toLowerCase();
+      });
+    } else if (typeof existingValue === "string") {
+      // Remove the wikilink from comma-separated string
+      const parts = existingValue.split(",").map((s) => s.trim());
+      const filtered = parts.filter((part) => {
+        if (!part || part === "[[]]" || part === "[]") return false;
+        const parsed = parseWikilink(part);
+        return !parsed || parsed.toLowerCase() !== sourceRecordName.toLowerCase();
+      });
+      newValue = filtered.join(", ");
+    } else {
+      continue;
+    }
+
+    updates.push({
+      recordId: target.id,
+      field: targetColumnId,
+      value: newValue,
+    });
+  }
+
+  return updates;
+}
+
+/**
  * Compute the updates needed to keep bidirectional relation links in sync.
  * For each target record linked by the source, ensures the target links back.
  * Returns only the updates that are missing (does not duplicate existing links).

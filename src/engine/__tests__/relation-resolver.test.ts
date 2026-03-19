@@ -12,6 +12,7 @@ import {
   formatWikilink,
   resolveRelations,
   computeBidirectionalUpdates,
+  computeBidirectionalRemovals,
 } from "../relation-resolver";
 
 const stubFile = { path: "test.md" } as unknown as TFile;
@@ -234,5 +235,105 @@ describe("computeBidirectionalUpdates", () => {
       targets
     );
     expect(updates).toHaveLength(2);
+  });
+});
+
+describe("computeBidirectionalRemovals", () => {
+  it("computes removals for targets no longer linked", () => {
+    const targets = [
+      makeRecord("projects/alpha", "Alpha", { tasks: "[[Task 1]]" }),
+      makeRecord("projects/beta", "Beta", { tasks: "[[Task 1]]" }),
+    ];
+
+    const removals = computeBidirectionalRemovals(
+      ["Alpha", "Beta"],
+      ["Alpha"],
+      "Task 1",
+      "tasks",
+      targets
+    );
+    expect(removals).toHaveLength(1);
+    expect(removals[0].recordId).toBe("projects/beta");
+  });
+
+  it("returns empty when no names were removed", () => {
+    const targets = [
+      makeRecord("projects/alpha", "Alpha", { tasks: "[[Task 1]]" }),
+    ];
+
+    const removals = computeBidirectionalRemovals(
+      ["Alpha"],
+      ["Alpha"],
+      "Task 1",
+      "tasks",
+      targets
+    );
+    expect(removals).toHaveLength(0);
+  });
+
+  it("removes back-link from array values", () => {
+    const targets = [
+      makeRecord("projects/alpha", "Alpha", {
+        tasks: ["[[Task 1]]", "[[Task 2]]"],
+      }),
+    ];
+
+    const removals = computeBidirectionalRemovals(
+      ["Alpha"],
+      [],
+      "Task 1",
+      "tasks",
+      targets
+    );
+    expect(removals).toHaveLength(1);
+    expect(removals[0].value).toEqual(["[[Task 2]]"]);
+  });
+
+  it("removes back-link from comma-separated string", () => {
+    const targets = [
+      makeRecord("projects/alpha", "Alpha", {
+        tasks: "[[Task 1]], [[Task 2]]",
+      }),
+    ];
+
+    const removals = computeBidirectionalRemovals(
+      ["Alpha"],
+      [],
+      "Task 1",
+      "tasks",
+      targets
+    );
+    expect(removals).toHaveLength(1);
+    expect(removals[0].value).toBe("[[Task 2]]");
+  });
+
+  it("matches case-insensitively for removals", () => {
+    const targets = [
+      makeRecord("projects/alpha", "Alpha", { tasks: "[[task 1]]" }),
+    ];
+
+    const removals = computeBidirectionalRemovals(
+      ["Alpha"],
+      [],
+      "Task 1",
+      "tasks",
+      targets
+    );
+    expect(removals).toHaveLength(1);
+  });
+
+  it("skips targets that don't have a back-link", () => {
+    const targets = [
+      makeRecord("projects/alpha", "Alpha", { tasks: null }),
+    ];
+
+    const removals = computeBidirectionalRemovals(
+      ["Alpha"],
+      [],
+      "Task 1",
+      "tasks",
+      targets
+    );
+    expect(removals).toHaveLength(0);
   });
 });

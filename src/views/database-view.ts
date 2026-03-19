@@ -8,6 +8,13 @@ import type { DatabaseRecord } from "../types/record";
 import { updateFrontmatter, removeFrontmatterField } from "../data/frontmatter-io";
 import { indexFile } from "../data/file-indexer";
 import { parseSchema, createDefaultSchema } from "../engine/schema-manager";
+import { filterByDbViewType } from "../engine/query-engine";
+import {
+  parseWikilinks,
+  formatWikilink,
+  computeBidirectionalUpdates,
+  computeBidirectionalRemovals,
+} from "../engine/relation-resolver";
 import { getYamlGroup } from "../engine/type-groups";
 import { pickNextColor } from "../engine/color-cycle";
 import { renameOptionInValue, removeOptionFromValue } from "../engine/option-operations";
@@ -24,6 +31,20 @@ export class DatabaseView extends ItemView {
   private renderRoot: Element | null = null;
   /** Track files we just created to prevent duplicate adds from on('create') event. */
   private recentlyCreated = new Set<string>();
+  /** Serialization queue for cell changes — prevents concurrent bidirectional sync races. */
+  private cellChangeQueue: Promise<void> = Promise.resolve();
+  /** Cached target records for relation columns, keyed by folder path. */
+  private targetRecordsCache = new Map<string, readonly DatabaseRecord[]>();
+  /** Watched target folder paths to avoid duplicate watchers. */
+  private watchedTargetPaths = new Set<string>();
+
+  /** Reload this view if it matches the given folder path. Called by other views for cross-view refresh. */
+  public async reloadIfFolder(folderPath: string): Promise<void> {
+    if (this.folderPath === folderPath) {
+      await this.loadDatabase();
+      this.renderApp();
+    }
+  }
 
   constructor(leaf: WorkspaceLeaf, plugin: DatabasePlugin) {
     super(leaf);
@@ -98,6 +119,20 @@ export class DatabaseView extends ItemView {
     });
   }
 
+  /** Refresh any other open DatabaseView that shows the given folder. */
+  private refreshOtherViews(folderPath: string): void {
+    // Use setTimeout to ensure the target schema write is flushed before reloading
+    setTimeout(() => {
+      const leaves = this.app.workspace.getLeavesOfType(DATABASE_VIEW_TYPE);
+      for (const leaf of leaves) {
+        const view = leaf.view;
+        if (view instanceof DatabaseView && view !== this) {
+          view.reloadIfFolder(folderPath);
+        }
+      }
+    }, 200);
+  }
+
   /** Load schema and index records from the folder. */
   private async loadDatabase(): Promise<void> {
     if (!this.folderPath) return;
@@ -115,9 +150,48 @@ export class DatabaseView extends ItemView {
     }
 
     await this.indexRecords();
+    this.ensureDbViewTypeColumn();
     this.syncSchemaOptionsFromRecords();
     await this.syncPropertyTypesToObsidian();
     await this.ensureDbviewFile();
+    await this.loadAllTargetRecords();
+  }
+
+  /** Ensure db-view-type column exists and is hidden when dbViewType is set. */
+  private ensureDbViewTypeColumn(): void {
+    if (!this.schema || !this.schema.dbViewType) return;
+
+    let updated = false;
+    let schema = this.schema;
+
+    // Add column if missing
+    if (!schema.columns.some((c) => c.id === "db-view-type")) {
+      schema = {
+        ...schema,
+        columns: [...schema.columns, { id: "db-view-type", type: "text" as const, label: "db view type" }],
+      };
+      updated = true;
+    }
+
+    // Auto-hide in all views
+    const updatedViews = schema.views.map((view) => {
+      const hidden = view.hiddenColumns ?? [];
+      if (!hidden.includes("db-view-type")) {
+        return { ...view, hiddenColumns: [...hidden, "db-view-type"] };
+      }
+      return view;
+    });
+
+    if (JSON.stringify(updatedViews) !== JSON.stringify(schema.views)) {
+      schema = { ...schema, views: updatedViews };
+      updated = true;
+    }
+
+    if (updated) {
+      this.schema = schema;
+      const schemaPath = `${this.folderPath}/${SCHEMA_FILENAME}`;
+      this.app.vault.adapter.write(schemaPath, JSON.stringify(schema, null, 2));
+    }
   }
 
   /** Discover select/multi-select option values from frontmatter that aren't in schema yet. */
@@ -279,6 +353,55 @@ export class DatabaseView extends ItemView {
     this.records = indexed;
   }
 
+  /** Load target records for all relation columns in the schema. */
+  private async loadAllTargetRecords(): Promise<void> {
+    if (!this.schema) return;
+    const relationColumns = this.schema.columns.filter((c) => c.type === "relation" && c.target);
+    for (const col of relationColumns) {
+      if (col.target) {
+        await this.loadTargetRecords(col.target);
+      }
+    }
+  }
+
+  /**
+   * Index .md files in a target folder and apply the target db's dbViewType filter.
+   * Results are cached in targetRecordsCache.
+   */
+  private async loadTargetRecords(folderPath: string): Promise<void> {
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
+    if (!(folder instanceof TFolder)) {
+      this.targetRecordsCache.set(folderPath, []);
+      return;
+    }
+
+    const mdFiles = folder.children.filter(
+      (f): f is TFile => f instanceof TFile && f.extension === "md"
+    );
+
+    const indexed = await Promise.all(
+      mdFiles.map(async (file) => {
+        const content = await this.app.vault.read(file);
+        return indexFile(file, content);
+      })
+    );
+
+    // Apply target db's dbViewType filter if configured
+    let filtered: readonly DatabaseRecord[] = indexed;
+    const targetSchemaPath = `${folderPath}/${SCHEMA_FILENAME}`;
+    try {
+      const schemaContent = await this.app.vault.adapter.read(targetSchemaPath);
+      const targetSchema = parseSchema(schemaContent);
+      if (targetSchema.dbViewType) {
+        filtered = filterByDbViewType(indexed, targetSchema.dbViewType);
+      }
+    } catch {
+      // No target schema — use all records unfiltered
+    }
+
+    this.targetRecordsCache.set(folderPath, filtered);
+  }
+
   /** Get all folder paths in the vault for autocomplete inputs. */
   private getVaultFolderPaths(): readonly string[] {
     return this.app.vault.getAllLoadedFiles()
@@ -305,19 +428,35 @@ export class DatabaseView extends ItemView {
         onClearPropertyFromAll: this.handleClearPropertyFromAll,
         onRenameOption: this.handleRenameOption,
         onDeleteOption: this.handleDeleteOption,
+        onCleanupBidirectionalLinks: this.handleCleanupBidirectionalLinks,
+        onNavigateToNote: this.handleNavigateToNote,
+        onRenameFile: this.handleRenameFile,
+        onCreateRelationRecord: this.handleCreateRelationRecord,
         folderPaths: this.getVaultFolderPaths(),
+        targetRecordsByFolder: new Map(this.targetRecordsCache),
       }),
       this.renderRoot
     );
   }
 
-  /** Handle cell edits — write updated frontmatter to the file.
+  /** Handle cell edits — serialized through a queue to prevent concurrent bidirectional sync races.
    *  Ensures select values are written as arrays when the Obsidian type is multitext/list. */
-  private handleCellChange = async (
+  private handleCellChange = (
     recordId: string,
     field: string,
     value: CellValue
-  ): Promise<void> => {
+  ): void => {
+    this.cellChangeQueue = this.cellChangeQueue.then(() =>
+      this.executeCellChange(recordId, field, value)
+    );
+  };
+
+  /** Execute a single cell change — writes frontmatter and syncs bidirectional links. */
+  private async executeCellChange(
+    recordId: string,
+    field: string,
+    value: CellValue
+  ): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(recordId);
     if (!(file instanceof TFile)) return;
 
@@ -338,6 +477,9 @@ export class DatabaseView extends ItemView {
       // multi-select values are already arrays from the component
     }
 
+    // Capture previous value for bidirectional removal detection
+    const previousValue = this.records.find((r) => r.id === recordId)?.values[field] ?? null;
+
     const content = await this.app.vault.read(file);
     const newContent = updateFrontmatter(content, field, writeValue);
     await this.app.vault.modify(file, newContent);
@@ -346,8 +488,66 @@ export class DatabaseView extends ItemView {
     this.records = this.records.map((r) =>
       r.id === recordId ? updatedRecord : r
     );
+
+    // Bidirectional sync for relation columns
+    await this.syncBidirectionalLinks(field, updatedRecord, previousValue);
+
     this.renderApp();
-  };
+  }
+
+  /** Sync bidirectional back-links after a relation cell change. */
+  private async syncBidirectionalLinks(
+    field: string,
+    sourceRecord: DatabaseRecord,
+    previousValue: CellValue
+  ): Promise<void> {
+    if (!this.schema) return;
+
+    const col = this.schema.columns.find((c) => c.id === field);
+    if (!col || col.type !== "relation" || !col.bidirectional || !col.reverseColumnId || !col.target) return;
+
+    const targetRecords = this.targetRecordsCache.get(col.target);
+    if (!targetRecords || targetRecords.length === 0) return;
+
+    // Compute additions — new back-links needed
+    const addUpdates = computeBidirectionalUpdates(
+      sourceRecord,
+      field,
+      col.reverseColumnId,
+      targetRecords
+    );
+
+    // Compute removals — stale back-links to remove
+    const previousNames = parseWikilinks(previousValue);
+    const currentNames = parseWikilinks(sourceRecord.values[field]);
+    const removeUpdates = computeBidirectionalRemovals(
+      previousNames,
+      currentNames,
+      sourceRecord.name,
+      col.reverseColumnId,
+      targetRecords
+    );
+
+    // Apply all updates to target files
+    const allUpdates = [...addUpdates, ...removeUpdates];
+    for (const update of allUpdates) {
+      try {
+        const targetFile = this.app.vault.getAbstractFileByPath(update.recordId);
+        if (!(targetFile instanceof TFile)) continue;
+        const targetContent = await this.app.vault.read(targetFile);
+        const updatedContent = updateFrontmatter(targetContent, update.field, update.value);
+        await this.app.vault.modify(targetFile, updatedContent);
+      } catch (err) {
+        console.error(`Database Plugin: Failed to sync back-link to ${update.recordId}`, err);
+      }
+    }
+
+    // Refresh target cache and other open views if updates were made
+    if (allUpdates.length > 0) {
+      await this.loadTargetRecords(col.target);
+      this.refreshOtherViews(col.target);
+    }
+  }
 
   /** Handle new record creation. */
   private handleNewRecord = async (
@@ -412,6 +612,82 @@ export class DatabaseView extends ItemView {
     }
   };
 
+  /** Navigate to a note by name — searches all vault files and opens in a new tab. */
+  private handleNavigateToNote = (noteName: string): void => {
+    const allFiles = this.app.vault.getMarkdownFiles();
+    const file = allFiles.find((f) => f.basename === noteName);
+    if (file) {
+      this.app.workspace.getLeaf("tab").openFile(file);
+    }
+  };
+
+  /** Rename a record's file (change the markdown filename). */
+  private handleRenameFile = async (
+    recordId: string,
+    newName: string
+  ): Promise<void> => {
+    const file = this.app.vault.getAbstractFileByPath(recordId);
+    if (!(file instanceof TFile)) return;
+
+    const folder = file.parent?.path ?? "";
+    const newPath = folder ? `${folder}/${newName}.md` : `${newName}.md`;
+
+    // Check for name collision
+    if (this.app.vault.getAbstractFileByPath(newPath)) {
+      console.warn(`Database Plugin: File "${newPath}" already exists, skipping rename`);
+      return;
+    }
+
+    try {
+      await this.app.vault.rename(file, newPath);
+      // Records will be updated by the rename event handler
+    } catch (err) {
+      console.error(`Database Plugin: Failed to rename "${recordId}" to "${newPath}"`, err);
+    }
+  };
+
+  /** Create a new record in a target relation folder with default frontmatter from its schema. */
+  private handleCreateRelationRecord = async (
+    targetFolder: string,
+    name: string
+  ): Promise<void> => {
+    const filePath = `${targetFolder}/${name}.md`;
+    if (this.app.vault.getAbstractFileByPath(filePath)) return; // already exists
+
+    try {
+      // Load target schema to get default frontmatter
+      const targetSchemaPath = `${targetFolder}/${SCHEMA_FILENAME}`;
+      let content = "---\n";
+      try {
+        const schemaContent = await this.app.vault.adapter.read(targetSchemaPath);
+        const targetSchema = parseSchema(schemaContent);
+        // Auto-inject db-view-type if target has dbViewType
+        if (targetSchema.dbViewType) {
+          content += `db-view-type: ${targetSchema.dbViewType}\n`;
+        }
+        for (const col of targetSchema.columns) {
+          if (col.type === "file" || col.type === "rollup" || col.type === "formula") continue;
+          if (col.id === "db-view-type" && targetSchema.dbViewType) continue;
+          switch (col.type) {
+            case "checkbox": content += `${col.id}: false\n`; break;
+            case "number": content += `${col.id}: 0\n`; break;
+            default: content += `${col.id}: \n`; break;
+          }
+        }
+      } catch {
+        // No target schema — create with empty frontmatter
+      }
+      content += "---\n";
+
+      await this.app.vault.create(filePath, content);
+      // Refresh target cache so the new record appears in the picker
+      await this.loadTargetRecords(targetFolder);
+      this.renderApp();
+    } catch (err) {
+      console.error(`Database Plugin: Failed to create relation record "${filePath}"`, err);
+    }
+  };
+
   /** Handle schema changes — save to .database.json via adapter (dotfile). */
   private handleSchemaChange = async (
     schema: DatabaseSchema
@@ -424,10 +700,80 @@ export class DatabaseView extends ItemView {
 
     await this.app.vault.adapter.write(schemaPath, content);
     await this.syncPropertyTypesToObsidian();
+    // Auto-create reverse columns in target schemas for bidirectional relations
+    await this.ensureBidirectionalReverseColumns();
+    // Reload target records for any new/changed relation columns
+    await this.loadAllTargetRecords();
+    this.registerTargetFolderWatchers();
     // Update the tab title to reflect any name change
     this.leaf.updateHeader();
     this.renderApp();
   };
+
+  /** For each bidirectional relation column, ensure the reverse column exists in the target schema. */
+  private async ensureBidirectionalReverseColumns(): Promise<void> {
+    if (!this.schema || !this.folderPath) return;
+
+    const biDirColumns = this.schema.columns.filter(
+      (c) => c.type === "relation" && c.bidirectional && c.reverseColumnId && c.target
+    );
+
+    for (const col of biDirColumns) {
+      const targetSchemaPath = `${col.target}/${SCHEMA_FILENAME}`;
+      try {
+        const content = await this.app.vault.adapter.read(targetSchemaPath);
+        const targetSchema = parseSchema(content);
+
+        // Check if reverse column already exists
+        if (targetSchema.columns.some((c) => c.id === col.reverseColumnId)) continue;
+
+        // Auto-create the reverse relation column in the target schema
+        const reverseColumn = {
+          id: col.reverseColumnId!,
+          type: "relation" as const,
+          label: col.reverseColumnId!,
+          target: this.folderPath,
+          multiple: true,
+          bidirectional: true,
+          reverseColumnId: col.id,
+        };
+
+        const updatedTargetSchema = {
+          ...targetSchema,
+          columns: [...targetSchema.columns, reverseColumn],
+        };
+        await this.app.vault.adapter.write(
+          targetSchemaPath,
+          JSON.stringify(updatedTargetSchema, null, 2)
+        );
+
+        // Add the empty property to all existing MD files in the target folder
+        const targetFolder = this.app.vault.getAbstractFileByPath(col.target!);
+        if (targetFolder instanceof TFolder) {
+          const mdFiles = targetFolder.children.filter(
+            (f): f is TFile => f instanceof TFile && f.extension === "md"
+          );
+          for (const file of mdFiles) {
+            try {
+              const fileContent = await this.app.vault.read(file);
+              const updated = updateFrontmatter(fileContent, col.reverseColumnId!, "");
+              if (updated !== fileContent) {
+                await this.app.vault.modify(file, updated);
+              }
+            } catch {
+              // Skip files that can't be read/written
+            }
+          }
+        }
+
+        console.log(`Database Plugin: Auto-created reverse column "${col.reverseColumnId}" in ${col.target}`);
+        // Refresh any open view for the target folder
+        this.refreshOtherViews(col.target!);
+      } catch {
+        // Target schema doesn't exist — skip
+      }
+    }
+  }
 
   /** Add a frontmatter property to all existing records in the database folder. */
   private handleAddPropertyToAll = async (
@@ -531,6 +877,99 @@ export class DatabaseView extends ItemView {
     this.renderApp();
   };
 
+  /** Clean up everything in the target database when a bidirectional relation column is deleted:
+   *  1. Remove the reverse property from all target files' frontmatter
+   *  2. Remove the reverse column from the target schema */
+  private handleCleanupBidirectionalLinks = async (
+    column: import("../types").ColumnDefinition
+  ): Promise<void> => {
+    if (!column.target || !column.reverseColumnId || !column.bidirectional) return;
+
+    // 1. Remove the reverse property from all target files
+    const targetFolder = this.app.vault.getAbstractFileByPath(column.target);
+    if (targetFolder instanceof TFolder) {
+      const mdFiles = targetFolder.children.filter(
+        (f): f is TFile => f instanceof TFile && f.extension === "md"
+      );
+      for (const file of mdFiles) {
+        try {
+          const content = await this.app.vault.read(file);
+          const newContent = removeFrontmatterField(content, column.reverseColumnId!);
+          if (newContent !== content) {
+            await this.app.vault.modify(file, newContent);
+          }
+        } catch (err) {
+          console.error(`Database Plugin: Failed to remove "${column.reverseColumnId}" from ${file.path}`, err);
+        }
+      }
+    }
+
+    // 2. Remove the reverse column from the target schema
+    const targetSchemaPath = `${column.target}/${SCHEMA_FILENAME}`;
+    try {
+      const schemaContent = await this.app.vault.adapter.read(targetSchemaPath);
+      const targetSchema = parseSchema(schemaContent);
+      const hasReverseCol = targetSchema.columns.some((c) => c.id === column.reverseColumnId);
+      if (hasReverseCol) {
+        const updatedSchema = {
+          ...targetSchema,
+          columns: targetSchema.columns.filter((c) => c.id !== column.reverseColumnId),
+        };
+        await this.app.vault.adapter.write(targetSchemaPath, JSON.stringify(updatedSchema, null, 2));
+      }
+    } catch {
+      // Target schema doesn't exist — nothing to clean
+    }
+
+    // Refresh target cache
+    await this.loadTargetRecords(column.target);
+    console.log(`Database Plugin: Cleaned up reverse column "${column.reverseColumnId}" from ${column.target}`);
+    // Refresh any open view for the target folder
+    this.refreshOtherViews(column.target);
+  };
+
+  /** Clean up all bidirectional back-links for a deleted record across all relation columns. */
+  private async cleanupBacklinksForRecord(record: DatabaseRecord): Promise<void> {
+    if (!this.schema) return;
+
+    const relationColumns = this.schema.columns.filter(
+      (c) => c.type === "relation" && c.bidirectional && c.reverseColumnId && c.target
+    );
+
+    for (const col of relationColumns) {
+      const linkedNames = parseWikilinks(record.values[col.id]);
+      if (linkedNames.length === 0) continue;
+
+      const targetRecords = this.targetRecordsCache.get(col.target!);
+      if (!targetRecords) continue;
+
+      const removeUpdates = computeBidirectionalRemovals(
+        linkedNames,
+        [], // current = empty (record is being deleted)
+        record.name,
+        col.reverseColumnId!,
+        targetRecords
+      );
+
+      for (const update of removeUpdates) {
+        try {
+          const targetFile = this.app.vault.getAbstractFileByPath(update.recordId);
+          if (!(targetFile instanceof TFile)) continue;
+          const content = await this.app.vault.read(targetFile);
+          const updatedContent = updateFrontmatter(content, update.field, update.value);
+          await this.app.vault.modify(targetFile, updatedContent);
+        } catch (err) {
+          console.error(`Database Plugin: Failed to clean up back-link in ${update.recordId}`, err);
+        }
+      }
+
+      if (removeUpdates.length > 0) {
+        await this.loadTargetRecords(col.target!);
+        this.refreshOtherViews(col.target!);
+      }
+    }
+  }
+
   /** Register file modification events to auto-refresh records. */
   private registerFileEvents(): void {
     this.registerEvent(
@@ -553,13 +992,18 @@ export class DatabaseView extends ItemView {
     );
 
     this.registerEvent(
-      this.app.vault.on("delete", (file) => {
+      this.app.vault.on("delete", async (file) => {
         // On delete, file.parent may already be null — match by path prefix instead
         if (file instanceof TFile && this.folderPath) {
           const isInFolder = file.path.startsWith(this.folderPath + "/");
-          if (isInFolder && this.records.some((r) => r.id === file.path)) {
-            this.records = this.records.filter((r) => r.id !== file.path);
-            this.renderApp();
+          if (isInFolder) {
+            const deletedRecord = this.records.find((r) => r.id === file.path);
+            if (deletedRecord) {
+              // Clean up bidirectional back-links for the deleted record
+              await this.cleanupBacklinksForRecord(deletedRecord);
+              this.records = this.records.filter((r) => r.id !== file.path);
+              this.renderApp();
+            }
           }
         }
       })
@@ -594,6 +1038,9 @@ export class DatabaseView extends ItemView {
       })
     );
 
+    // Register watchers for target folders (relation columns)
+    this.registerTargetFolderWatchers();
+
     this.registerEvent(
       this.app.vault.on("create", async (file) => {
         if (
@@ -615,5 +1062,54 @@ export class DatabaseView extends ItemView {
         }
       })
     );
+  }
+
+  /** Register file watchers for target folders used by relation columns. */
+  private registerTargetFolderWatchers(): void {
+    if (!this.schema) return;
+
+    const relationColumns = this.schema.columns.filter((c) => c.type === "relation" && c.target);
+    for (const col of relationColumns) {
+      const targetPath = col.target!;
+      if (this.watchedTargetPaths.has(targetPath)) continue;
+      this.watchedTargetPaths.add(targetPath);
+
+      // Watch for changes in target folders — invalidate cache and re-render
+      const handleTargetChange = async (file: TAbstractFile) => {
+        if (!(file instanceof TFile) || file.extension !== "md") return;
+        const fileFolder = file.path.substring(0, file.path.lastIndexOf("/"));
+        if (fileFolder !== targetPath) return;
+        await this.loadTargetRecords(targetPath);
+        this.renderApp();
+      };
+
+      this.registerEvent(
+        this.app.vault.on("modify", handleTargetChange)
+      );
+      this.registerEvent(
+        this.app.vault.on("create", handleTargetChange)
+      );
+      this.registerEvent(
+        this.app.vault.on("delete", async (file) => {
+          if (!(file instanceof TFile)) return;
+          // On delete, file.parent may be null — match by path prefix
+          if (file.path.startsWith(targetPath + "/")) {
+            await this.loadTargetRecords(targetPath);
+            this.renderApp();
+          }
+        })
+      );
+      this.registerEvent(
+        this.app.vault.on("rename", async (file, oldPath) => {
+          if (!(file instanceof TFile)) return;
+          const wasInTarget = oldPath.startsWith(targetPath + "/");
+          const isInTarget = file.path.startsWith(targetPath + "/") && file.extension === "md";
+          if (wasInTarget || isInTarget) {
+            await this.loadTargetRecords(targetPath);
+            this.renderApp();
+          }
+        })
+      );
+    }
   }
 }

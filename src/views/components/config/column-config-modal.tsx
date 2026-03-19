@@ -12,6 +12,7 @@ import type {
 } from "../../../types/schema";
 import { isSameGroup } from "../../../engine/type-groups";
 import { ColorPicker } from "../shared/color-picker";
+import { RelationConfigFields } from "./relation-config-fields";
 
 /** All column types available in the type dropdown. */
 const COLUMN_TYPES: readonly ColumnType[] = [
@@ -41,6 +42,8 @@ interface ColumnConfigModalProps {
   readonly onDeleteOption?: (optionName: string) => void;
   /** Called to close the modal without saving. */
   readonly onClose: () => void;
+  /** All vault folder paths for the target folder autocomplete. */
+  readonly folderPaths?: readonly string[];
 }
 
 /**
@@ -70,14 +73,18 @@ export function ColumnConfigModal({
   onDelete,
   onDeleteOption,
   onClose,
+  folderPaths,
 }: ColumnConfigModalProps) {
   const isEditing = column !== undefined;
+  const isFileColumn = column?.type === "file";
 
   const [label, setLabel] = useState(column?.label ?? "");
   const [id, setId] = useState(column?.id ?? "");
   const [type, setType] = useState<ColumnType>(column?.type ?? "text");
   const [options, setOptions] = useState<readonly SelectOption[]>(column?.options ?? []);
   const [target, setTarget] = useState(column?.target ?? "");
+  const [bidirectional, setBidirectional] = useState(column?.bidirectional ?? false);
+  const [reverseColumnId, setReverseColumnId] = useState(column?.reverseColumnId ?? "");
   const [relationColumn, setRelationColumn] = useState(column?.relationColumn ?? "");
   const [targetColumn, setTargetColumn] = useState(column?.targetColumn ?? "");
   const [rollupFunction, setRollupFunction] = useState<RollupFunction>(
@@ -231,7 +238,13 @@ export function ColumnConfigModal({
         ? { ...base, options: options.filter((o) => o.value.trim()) }
         : base;
     const withRelation =
-      type === "relation" ? { ...withOptions, target } : withOptions;
+      type === "relation"
+        ? {
+            ...withOptions,
+            target,
+            ...(bidirectional ? { bidirectional: true, reverseColumnId } : {}),
+          }
+        : withOptions;
     const withRollup =
       type === "rollup"
         ? { ...withRelation, relationColumn, targetColumn, rollupFunction }
@@ -241,8 +254,8 @@ export function ColumnConfigModal({
 
     return withFormula;
   }, [
-    label, id, type, options, target, relationColumn,
-    targetColumn, rollupFunction, formula, existingIds, isEditing, column,
+    label, id, type, options, target, bidirectional, reverseColumnId,
+    relationColumn, targetColumn, rollupFunction, formula, existingIds, isEditing, column,
   ]);
 
   /** Validate inputs and call onSave with the assembled ColumnDefinition. */
@@ -330,7 +343,8 @@ export function ColumnConfigModal({
             />
           </div>
 
-          {/* ID */}
+          {/* ID — hidden for file column */}
+          {!isFileColumn && (
           <div class="database-form-group">
             <label class="database-form-label">ID</label>
             <input
@@ -341,8 +355,10 @@ export function ColumnConfigModal({
               placeholder="column-id"
             />
           </div>
+          )}
 
-          {/* Type */}
+          {/* Type — hidden for file column */}
+          {!isFileColumn && (
           <div class="database-form-group">
             <label class="database-form-label">Type</label>
             <select class="database-form-select" value={type} onChange={handleTypeChange}>
@@ -351,6 +367,7 @@ export function ColumnConfigModal({
               ))}
             </select>
           </div>
+          )}
 
           {/* Select/Multi-select options */}
           {showOptions && (
@@ -434,18 +451,17 @@ export function ColumnConfigModal({
             </div>
           )}
 
-          {/* Relation target */}
+          {/* Relation config: target folder, bidirectional toggle, reverse column */}
           {showRelation && (
-            <div class="database-form-group">
-              <label class="database-form-label">Target Folder</label>
-              <input
-                class="database-form-input"
-                type="text"
-                value={target}
-                onInput={(e) => setTarget((e.target as HTMLInputElement).value)}
-                placeholder="path/to/related/database"
-              />
-            </div>
+            <RelationConfigFields
+              target={target}
+              onTargetChange={setTarget}
+              bidirectional={bidirectional}
+              onBidirectionalChange={setBidirectional}
+              reverseColumnId={reverseColumnId}
+              onReverseColumnIdChange={setReverseColumnId}
+              folderPaths={folderPaths ?? []}
+            />
           )}
 
           {/* Rollup config */}
@@ -511,7 +527,7 @@ export function ColumnConfigModal({
 
         {/* Footer */}
         <div class="database-modal-footer">
-          {isEditing && onDelete && (
+          {isEditing && onDelete && !isFileColumn && (
             <button
               class="database-btn database-btn--danger"
               onClick={handleDelete}

@@ -8,8 +8,8 @@ const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---/;
 /** Regex to match a wikilink like [[Some Page]]. */
 const WIKILINK_REGEX = /^\[\[(.+?)\]\]$/;
 
-/** Regex to match an inline YAML array like [a, b, c]. */
-const INLINE_ARRAY_REGEX = /^\[(.+)\]$/;
+/** Regex to match an inline YAML array like [a, b, c] or empty []. */
+const INLINE_ARRAY_REGEX = /^\[(.*)\]$/;
 
 /**
  * Parse a single YAML value string into a typed CellValue.
@@ -33,10 +33,12 @@ function parseValue(raw: string): CellValue {
     return `[[${wikiMatch[1]}]]`;
   }
 
-  // Inline array: [a, b, c]
+  // Inline array: [a, b, c] or empty []
   const inlineMatch = trimmed.match(INLINE_ARRAY_REGEX);
   if (inlineMatch) {
-    return inlineMatch[1].split(",").map((item) => {
+    const inner = inlineMatch[1].trim();
+    if (!inner) return [] as readonly string[];
+    return inner.split(",").map((item) => {
       const parsed = parseValue(item.trim());
       return parsed === null ? "" : parsed;
     }) as readonly string[] | readonly number[];
@@ -122,11 +124,28 @@ function serializeValue(value: CellValue): string {
   if (typeof value === "boolean") return String(value);
   if (typeof value === "number") return String(value);
   if (Array.isArray(value)) {
-    return `[${(value as readonly (string | number)[]).join(", ")}]`;
+    const items = (value as readonly (string | number)[]).map((item) =>
+      typeof item === "string" ? quoteIfNeeded(item) : String(item)
+    );
+    return `[${items.join(", ")}]`;
   }
-  // String — quote if it contains special chars
-  const str = value as string;
-  if (str.includes(":") || str.includes("#") || str.includes('"')) {
+  // String — quote if it contains special YAML chars
+  return quoteIfNeeded(value as string);
+}
+
+/**
+ * Quote a string if it contains YAML-special characters.
+ * Wikilinks ([[...]]) must be quoted to prevent YAML nested array interpretation.
+ * @param str - The string to potentially quote
+ * @returns Quoted or original string
+ */
+function quoteIfNeeded(str: string): string {
+  if (
+    str.includes("[") || str.includes("]") ||
+    str.includes(":") || str.includes("#") ||
+    str.includes('"') || str.includes(",") ||
+    str.includes("{") || str.includes("}")
+  ) {
     return `"${str.replace(/"/g, '\\"')}"`;
   }
   return str;

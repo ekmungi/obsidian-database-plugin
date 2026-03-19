@@ -23,6 +23,10 @@ interface CellRendererProps {
   readonly records?: readonly DatabaseRecord[];
   /** Called to add a new option to a select/multi-select column schema. */
   readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
+  /** Target records cache keyed by folder path — for relation pickers. */
+  readonly targetRecordsByFolder?: ReadonlyMap<string, readonly DatabaseRecord[]>;
+  /** Called to create a new record in a target relation folder. */
+  readonly onCreateRelationRecord?: (targetFolder: string, name: string) => Promise<void>;
 }
 
 /**
@@ -39,6 +43,8 @@ export function CellRenderer({
   onNavigate,
   records,
   onAddOption,
+  targetRecordsByFolder,
+  onCreateRelationRecord,
 }: CellRendererProps) {
   /** Wrap onAddOption to bind the column ID. */
   const handleAddOption = useCallback(
@@ -172,14 +178,24 @@ export function CellRenderer({
       );
     }
 
-    case "relation":
+    case "relation": {
+      const targetRecords = column.target && targetRecordsByFolder
+        ? targetRecordsByFolder.get(column.target)
+        : undefined;
+      const handleCreateInTarget = column.target && onCreateRelationRecord
+        ? (name: string) => onCreateRelationRecord(column.target!, name)
+        : undefined;
       return (
         <RelationCell
           value={value}
           onChange={handleRelationChange}
           onNavigate={onNavigate ?? (() => {})}
+          targetRecords={targetRecords}
+          multiple={column.multiple}
+          onCreate={handleCreateInTarget}
         />
       );
+    }
 
     case "rollup":
     case "formula":

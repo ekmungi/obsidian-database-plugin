@@ -2,7 +2,7 @@
 
 import { h } from "preact";
 import { useCallback, useMemo } from "preact/hooks";
-import type { DatabaseSchema, SortRule, ColorKey } from "../../../types/schema";
+import type { DatabaseSchema, SortRule, ColorKey, ColumnDefinition } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
 import { TableHeader } from "./table-header";
 import { TableRow } from "./table-row";
@@ -21,6 +21,14 @@ interface TableViewProps {
   readonly onEditColumn?: (columnId: string) => void;
   /** Called to add a new option to a select/multi-select column. */
   readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
+  /** Target records cache keyed by folder path — for relation pickers. */
+  readonly targetRecordsByFolder?: ReadonlyMap<string, readonly DatabaseRecord[]>;
+  /** Navigate to a note by name (for relation tag clicks). */
+  readonly onNavigateToNote?: (noteName: string) => void;
+  /** Rename a record's file. */
+  readonly onRenameFile?: (recordId: string, newName: string) => void;
+  /** Create a new record in a target relation folder. */
+  readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
 }
 
 /**
@@ -45,6 +53,10 @@ export function TableView({
   onEditColumn,
   onAddOption,
   hiddenColumns,
+  targetRecordsByFolder,
+  onNavigateToNote,
+  onRenameFile,
+  onCreateRelationRecord,
 }: TableViewProps) {
   /** Get visible columns — filter out hidden columns from the active view config. */
   const visibleColumns = useMemo(() => {
@@ -91,6 +103,10 @@ export function TableView({
               onOpenNote={() => onOpenNote(record)}
               records={records}
               onAddOption={onAddOption}
+              targetRecordsByFolder={targetRecordsByFolder}
+              onNavigateToNote={onNavigateToNote}
+              onRenameFile={onRenameFile}
+              onCreateRelationRecord={onCreateRelationRecord}
             />
           ))}
         </tbody>

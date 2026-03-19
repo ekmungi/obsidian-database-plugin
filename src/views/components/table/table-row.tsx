@@ -1,7 +1,7 @@
 /** Table row — renders cells with appropriate editors per column type. */
 
 import { h } from "preact";
-import { useCallback } from "preact/hooks";
+import { useState, useCallback, useEffect, useRef } from "preact/hooks";
 import type { ColumnDefinition, ColorKey } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
 import { CellRenderer } from "../cells/cell-renderer";
@@ -16,6 +16,14 @@ interface TableRowProps {
   readonly records?: readonly DatabaseRecord[];
   /** Called to add a new option to a select/multi-select column. */
   readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
+  /** Target records cache keyed by folder path — for relation pickers. */
+  readonly targetRecordsByFolder?: ReadonlyMap<string, readonly DatabaseRecord[]>;
+  /** Navigate to a note by name (for relation tag clicks). */
+  readonly onNavigateToNote?: (noteName: string) => void;
+  /** Rename a record's file. */
+  readonly onRenameFile?: (recordId: string, newName: string) => void;
+  /** Create a new record in a target relation folder. */
+  readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
 }
 
 /**
@@ -34,6 +42,10 @@ export function TableRow({
   onOpenNote,
   records,
   onAddOption,
+  targetRecordsByFolder,
+  onNavigateToNote,
+  onRenameFile,
+  onCreateRelationRecord,
 }: TableRowProps) {
   /** Handle cell value change, wrapping with the field name. */
   const handleChange = useCallback(
@@ -43,16 +55,69 @@ export function TableRow({
     [onCellChange]
   );
 
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(record.name);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  /** Sync nameValue when record changes (e.g., after rename or re-index). */
+  useEffect(() => {
+    setNameValue(record.name);
+    setEditingName(false);
+  }, [record.name]);
+
+  /** Focus and select the input text when entering edit mode. */
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName]);
+
+  /** Commit the file rename and exit edit mode. */
+  const handleNameCommit = useCallback(() => {
+    setEditingName(false);
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== record.name) {
+      onRenameFile?.(record.id, trimmed);
+    } else {
+      setNameValue(record.name);
+    }
+  }, [nameValue, record.id, record.name, onRenameFile]);
+
   return (
     <tr>
       {columns.map((col) => {
-        // File column renders as a clickable link
+        // File column: click text to navigate, click cell area to edit
         if (col.type === "file") {
           return (
-            <td key={col.id}>
-              <span class="database-link" onClick={onOpenNote}>
-                {record.name}
-              </span>
+            <td
+              key={col.id}
+              onClick={() => setEditingName(true)}
+              style={{ cursor: "text" }}
+            >
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  class="database-form-input"
+                  type="text"
+                  value={nameValue}
+                  onInput={(e) => setNameValue((e.target as HTMLInputElement).value)}
+                  onBlur={handleNameCommit}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleNameCommit();
+                    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setEditingName(false); setNameValue(record.name); }
+                  }}
+                  style={{ width: "100%", padding: "2px 4px" }}
+                />
+              ) : (
+                <span
+                  class="database-link"
+                  onClick={(e) => { e.stopPropagation(); onOpenNote(); }}
+                >
+                  {record.name}
+                </span>
+              )}
             </td>
           );
         }
@@ -65,9 +130,11 @@ export function TableRow({
               column={col}
               value={cellValue}
               onChange={(value) => handleChange(col.id, value)}
-              onNavigate={undefined}
+              onNavigate={onNavigateToNote}
               records={records}
               onAddOption={onAddOption}
+              targetRecordsByFolder={targetRecordsByFolder}
+              onCreateRelationRecord={onCreateRelationRecord}
             />
           </td>
         );
