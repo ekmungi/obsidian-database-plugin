@@ -1,6 +1,6 @@
 {
   "name": "obsidian-database-plugin",
-  "version": "0.1.0",
+  "version": "0.10.0",
   "description": "Notion-like database views for Obsidian — tables, kanban boards, and calendars over your markdown files",
   "main": "main.js",
   "scripts": {
