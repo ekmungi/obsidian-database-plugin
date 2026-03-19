@@ -104,6 +104,10 @@ The reverse column (`project`) is auto-created in the target database's schema w
 
 `gray`, `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `brown`
 
+## Known issues
+
+- **External file renames break relation backlinks** -- when a file linked via a bidirectional relation is renamed outside Obsidian (e.g., in Windows Explorer or via cloud sync), the backlink in the target database becomes stale. Renaming inside Obsidian works correctly. Workaround: after an external rename, manually update the backlink in the target file's frontmatter.
+
 ## Development
 
 ```bash
