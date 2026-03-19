@@ -44,6 +44,8 @@ interface ColumnConfigModalProps {
   readonly onClose: () => void;
   /** All vault folder paths for the target folder autocomplete. */
   readonly folderPaths?: readonly string[];
+  /** When true, render as compact dropdown content (no overlay, no header, no cancel). */
+  readonly dropdown?: boolean;
 }
 
 /**
@@ -74,6 +76,7 @@ export function ColumnConfigModal({
   onDeleteOption,
   onClose,
   folderPaths,
+  dropdown,
 }: ColumnConfigModalProps) {
   const isEditing = column !== undefined;
   const isFileColumn = column?.type === "file";
@@ -98,6 +101,7 @@ export function ColumnConfigModal({
   const [renames, setRenames] = useState<Map<string, string>>(new Map());
   const [confirmDeleteOption, setConfirmDeleteOption] = useState<string | null>(null);
   const [colorPickerIdx, setColorPickerIdx] = useState<number | null>(null);
+  const [wrapText, setWrapText] = useState(column?.wrapText ?? false);
   const [error, setError] = useState("");
 
   /** Update label and auto-generate ID unless manually edited. */
@@ -251,11 +255,12 @@ export function ColumnConfigModal({
         : withRelation;
     const withFormula =
       type === "formula" ? { ...withRollup, formula } : withRollup;
+    const withWrap = wrapText ? { ...withFormula, wrapText: true } : withFormula;
 
-    return withFormula;
+    return withWrap;
   }, [
     label, id, type, options, target, bidirectional, reverseColumnId,
-    relationColumn, targetColumn, rollupFunction, formula, existingIds, isEditing, column,
+    relationColumn, targetColumn, rollupFunction, formula, wrapText, existingIds, isEditing, column,
   ]);
 
   /** Validate inputs and call onSave with the assembled ColumnDefinition. */
@@ -284,10 +289,11 @@ export function ColumnConfigModal({
     onDelete?.();
   }, [confirmDelete, onDelete]);
 
-  /** Close on backdrop click. */
+  /** Close on backdrop click — works for both modal overlay and dropdown overlay. */
   const handleBackdropClick = useCallback(
     (e: Event) => {
-      if ((e.target as HTMLElement).classList.contains("database-modal-overlay")) {
+      const el = e.target as HTMLElement;
+      if (el.classList.contains("database-modal-overlay") || el.classList.contains("database-dropdown-overlay")) {
         onClose();
       }
     },
@@ -299,249 +305,84 @@ export function ColumnConfigModal({
   const showRollup = type === "rollup";
   const showFormula = type === "formula";
 
+  /** Shared form fields rendered in both modal and dropdown modes. */
+  const formFields = (
+    <>
+      {error && (<div style={{ color: "var(--text-error)", marginBottom: "8px", fontSize: "var(--font-ui-small)" }}>{error}</div>)}
+      {showTypeChangeConfirm && (<div style={{ background: "var(--background-modifier-error)", padding: "8px 12px", borderRadius: "var(--radius-s)", marginBottom: "8px", fontSize: "var(--font-ui-small)" }}>Changing type will clear values in all pages. Click Save again to confirm.</div>)}
+      <div class="database-form-group"><label class="database-form-label">Label</label><input class="database-form-input" type="text" value={label} onInput={handleLabelChange} placeholder="Column name" autoFocus /></div>
+      {!isFileColumn && (<div class="database-form-group"><label class="database-form-label">ID</label><input class="database-form-input" type="text" value={id} onInput={handleIdChange} placeholder="column-id" /></div>)}
+      {!isFileColumn && (<div class="database-form-group"><label class="database-form-label">Type</label><select class="database-form-select" value={type} onChange={handleTypeChange}>{COLUMN_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}</select></div>)}
+      <div style={{ borderTop: "1px solid var(--background-modifier-border)", margin: "4px 0 8px" }} />
+      <div class="database-form-group"><label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "var(--font-ui-small)" }}><input type="checkbox" checked={wrapText} onChange={() => setWrapText(!wrapText)} /><span>Wrap text</span></label></div>
+      {(showOptions || showRelation || showRollup || showFormula) && (<div style={{ borderTop: "1px solid var(--background-modifier-border)", margin: "4px 0 8px" }} />)}
+      {showOptions && (
+        <div class="database-form-group">
+          <label class="database-form-label">Options</label>
+          <div class="option-editor-list">
+            {options.map((opt, idx) => (
+              <div key={idx} class="option-editor-row">
+                <div style={{ position: "relative" }}>
+                  <div class="color-picker-swatch" style={{ backgroundColor: colorToHex(opt.color) }} onClick={() => setColorPickerIdx(colorPickerIdx === idx ? null : idx)} title={opt.color} />
+                  {colorPickerIdx === idx && (<div style={{ position: "absolute", top: "28px", left: 0, zIndex: 20 }}><ColorPicker value={opt.color} onChange={(c) => updateOptionColor(idx, c)} onClose={() => setColorPickerIdx(null)} /></div>)}
+                </div>
+                <input class="database-form-input" type="text" value={opt.value} onInput={(e) => updateOptionValue(idx, (e.target as HTMLInputElement).value)} placeholder="Option value" style={{ flex: 1 }} />
+                <button class="database-btn database-btn--ghost" onClick={() => moveOptionUp(idx)} title="Move up">&#9650;</button>
+                <button class="database-btn database-btn--ghost" onClick={() => moveOptionDown(idx)} title="Move down">&#9660;</button>
+                <button class={`database-btn ${confirmDeleteOption === opt.value ? "database-btn--danger" : "database-btn--ghost"}`} onClick={() => removeOption(idx)} title={confirmDeleteOption === opt.value ? "Click again to confirm" : "Remove"}>&#10005;</button>
+              </div>
+            ))}
+          </div>
+          {confirmDeleteOption && (<div style={{ color: "var(--text-on-accent)", fontSize: "var(--font-ui-smaller)", marginTop: "4px", padding: "4px 8px", background: "var(--interactive-accent)", borderRadius: "var(--radius-s)" }}>Click X again to delete "{confirmDeleteOption}" from all pages.</div>)}
+          <button class="database-btn database-btn--ghost" onClick={addOption} style={{ marginTop: "4px" }}>+ Add option</button>
+        </div>
+      )}
+      {showRelation && (<RelationConfigFields target={target} onTargetChange={setTarget} bidirectional={bidirectional} onBidirectionalChange={setBidirectional} reverseColumnId={reverseColumnId} onReverseColumnIdChange={setReverseColumnId} folderPaths={folderPaths ?? []} />)}
+      {showRollup && (
+        <>
+          <div class="database-form-group"><label class="database-form-label">Relation Column</label><input class="database-form-input" type="text" value={relationColumn} onInput={(e) => setRelationColumn((e.target as HTMLInputElement).value)} placeholder="relation-column-id" /></div>
+          <div class="database-form-group"><label class="database-form-label">Target Column</label><input class="database-form-input" type="text" value={targetColumn} onInput={(e) => setTargetColumn((e.target as HTMLInputElement).value)} placeholder="target-column-id" /></div>
+          <div class="database-form-group"><label class="database-form-label">Function</label><select class="database-form-select" value={rollupFunction} onChange={(e) => setRollupFunction((e.target as HTMLSelectElement).value as RollupFunction)}>{ROLLUP_FUNCTIONS.map((fn) => (<option key={fn} value={fn}>{fn}</option>))}</select></div>
+        </>
+      )}
+      {showFormula && (<div class="database-form-group"><label class="database-form-label">Formula</label><input class="database-form-input" type="text" value={formula} onInput={(e) => setFormula((e.target as HTMLInputElement).value)} placeholder="e.g. prop('Price') * prop('Quantity')" /></div>)}
+    </>
+  );
+
+  // Dropdown mode: compact, no overlay/header/cancel — parent positions this
+  if (dropdown) {
+    return (
+      <>
+        <div class="database-dropdown-body">{formFields}</div>
+        <div class="database-dropdown-footer">
+          {isEditing && onDelete && !isFileColumn && (
+            <button class="database-btn database-btn--danger" onClick={handleDelete}>
+              {confirmDelete ? "Confirm?" : "Delete"}
+            </button>
+          )}
+          <button class="database-btn database-btn--primary" onClick={handleSave} style={{ flex: 1 }}>Save</button>
+        </div>
+      </>
+    );
+  }
+
+  // Modal mode: overlay + header + cancel
   return (
     <div class="database-modal-overlay" onClick={handleBackdropClick}>
       <div class="database-modal">
-        {/* Header */}
         <div class="database-modal-header">
           <span>{isEditing ? "Edit Column" : "Add Column"}</span>
-          <button class="database-btn database-btn--ghost" onClick={onClose}>
-            &#10005;
-          </button>
+          <button class="database-btn database-btn--ghost" onClick={onClose}>&#10005;</button>
         </div>
-
-        {/* Body */}
-        <div class="database-modal-body">
-          {error && (
-            <div style={{ color: "var(--text-error)", marginBottom: "8px", fontSize: "var(--font-ui-small)" }}>
-              {error}
-            </div>
-          )}
-
-          {showTypeChangeConfirm && (
-            <div style={{
-              background: "var(--background-modifier-error)",
-              padding: "8px 12px",
-              borderRadius: "var(--radius-s)",
-              marginBottom: "8px",
-              fontSize: "var(--font-ui-small)",
-            }}>
-              Changing type will clear values in all pages. Click Save again to confirm.
-            </div>
-          )}
-
-          {/* Label */}
-          <div class="database-form-group">
-            <label class="database-form-label">Label</label>
-            <input
-              class="database-form-input"
-              type="text"
-              value={label}
-              onInput={handleLabelChange}
-              placeholder="Column name"
-              autoFocus
-            />
-          </div>
-
-          {/* ID — hidden for file column */}
-          {!isFileColumn && (
-          <div class="database-form-group">
-            <label class="database-form-label">ID</label>
-            <input
-              class="database-form-input"
-              type="text"
-              value={id}
-              onInput={handleIdChange}
-              placeholder="column-id"
-            />
-          </div>
-          )}
-
-          {/* Type — hidden for file column */}
-          {!isFileColumn && (
-          <div class="database-form-group">
-            <label class="database-form-label">Type</label>
-            <select class="database-form-select" value={type} onChange={handleTypeChange}>
-              {COLUMN_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-          )}
-
-          {/* Select/Multi-select options */}
-          {showOptions && (
-            <div class="database-form-group">
-              <label class="database-form-label">Options</label>
-              <div class="option-editor-list">
-                {options.map((opt, idx) => (
-                  <div key={idx} class="option-editor-row">
-                    <div style={{ position: "relative" }}>
-                      <div
-                        class="color-picker-swatch"
-                        style={{ backgroundColor: colorToHex(opt.color) }}
-                        onClick={() =>
-                          setColorPickerIdx(colorPickerIdx === idx ? null : idx)
-                        }
-                        title={opt.color}
-                      />
-                      {colorPickerIdx === idx && (
-                        <div style={{ position: "absolute", top: "28px", left: 0, zIndex: 20 }}>
-                          <ColorPicker
-                            value={opt.color}
-                            onChange={(c) => updateOptionColor(idx, c)}
-                            onClose={() => setColorPickerIdx(null)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <input
-                      class="database-form-input"
-                      type="text"
-                      value={opt.value}
-                      onInput={(e) =>
-                        updateOptionValue(idx, (e.target as HTMLInputElement).value)
-                      }
-                      placeholder="Option value"
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      class="database-btn database-btn--ghost"
-                      onClick={() => moveOptionUp(idx)}
-                      title="Move up"
-                    >
-                      &#9650;
-                    </button>
-                    <button
-                      class="database-btn database-btn--ghost"
-                      onClick={() => moveOptionDown(idx)}
-                      title="Move down"
-                    >
-                      &#9660;
-                    </button>
-                    <button
-                      class={`database-btn ${confirmDeleteOption === opt.value ? "database-btn--danger" : "database-btn--ghost"}`}
-                      onClick={() => removeOption(idx)}
-                      title={confirmDeleteOption === opt.value ? "Click again to confirm" : "Remove"}
-                    >
-                      &#10005;
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {confirmDeleteOption && (
-                <div style={{
-                  color: "var(--text-on-accent)",
-                  fontSize: "var(--font-ui-smaller)",
-                  marginTop: "4px",
-                  padding: "4px 8px",
-                  background: "var(--interactive-accent)",
-                  borderRadius: "var(--radius-s)",
-                }}>
-                  Click X again to delete "{confirmDeleteOption}" from all pages.
-                </div>
-              )}
-              <button
-                class="database-btn database-btn--ghost"
-                onClick={addOption}
-                style={{ marginTop: "4px" }}
-              >
-                + Add option
-              </button>
-            </div>
-          )}
-
-          {/* Relation config: target folder, bidirectional toggle, reverse column */}
-          {showRelation && (
-            <RelationConfigFields
-              target={target}
-              onTargetChange={setTarget}
-              bidirectional={bidirectional}
-              onBidirectionalChange={setBidirectional}
-              reverseColumnId={reverseColumnId}
-              onReverseColumnIdChange={setReverseColumnId}
-              folderPaths={folderPaths ?? []}
-            />
-          )}
-
-          {/* Rollup config */}
-          {showRollup && (
-            <>
-              <div class="database-form-group">
-                <label class="database-form-label">Relation Column</label>
-                <input
-                  class="database-form-input"
-                  type="text"
-                  value={relationColumn}
-                  onInput={(e) =>
-                    setRelationColumn((e.target as HTMLInputElement).value)
-                  }
-                  placeholder="relation-column-id"
-                />
-              </div>
-              <div class="database-form-group">
-                <label class="database-form-label">Target Column</label>
-                <input
-                  class="database-form-input"
-                  type="text"
-                  value={targetColumn}
-                  onInput={(e) =>
-                    setTargetColumn((e.target as HTMLInputElement).value)
-                  }
-                  placeholder="target-column-id"
-                />
-              </div>
-              <div class="database-form-group">
-                <label class="database-form-label">Function</label>
-                <select
-                  class="database-form-select"
-                  value={rollupFunction}
-                  onChange={(e) =>
-                    setRollupFunction(
-                      (e.target as HTMLSelectElement).value as RollupFunction,
-                    )
-                  }
-                >
-                  {ROLLUP_FUNCTIONS.map((fn) => (
-                    <option key={fn} value={fn}>{fn}</option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
-
-          {/* Formula expression */}
-          {showFormula && (
-            <div class="database-form-group">
-              <label class="database-form-label">Formula</label>
-              <input
-                class="database-form-input"
-                type="text"
-                value={formula}
-                onInput={(e) => setFormula((e.target as HTMLInputElement).value)}
-                placeholder="e.g. prop('Price') * prop('Quantity')"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
+        <div class="database-modal-body">{formFields}</div>
         <div class="database-modal-footer">
           {isEditing && onDelete && !isFileColumn && (
-            <button
-              class="database-btn database-btn--danger"
-              onClick={handleDelete}
-              style={{ marginRight: "auto" }}
-            >
+            <button class="database-btn database-btn--danger" onClick={handleDelete} style={{ marginRight: "auto" }}>
               {confirmDelete ? "Delete property and all data?" : "Delete"}
             </button>
           )}
-          <button class="database-btn database-btn--ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button class="database-btn database-btn--primary" onClick={handleSave}>
-            Save
-          </button>
+          <button class="database-btn database-btn--ghost" onClick={onClose}>Cancel</button>
+          <button class="database-btn database-btn--primary" onClick={handleSave}>Save</button>
         </div>
       </div>
     </div>

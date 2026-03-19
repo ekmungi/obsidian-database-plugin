@@ -107,6 +107,7 @@ export function TableRow({
           return (
             <td
               key={col.id}
+              class={col.wrapText ? "database-td--wrap" : "database-td--nowrap"}
               onClick={() => setEditingName(true)}
               style={{ cursor: "text" }}
             >
@@ -140,7 +141,7 @@ export function TableRow({
         const cellValue = record.values[col.id] ?? null;
 
         return (
-          <td key={col.id}>
+          <td key={col.id} class={col.wrapText ? "database-td--wrap" : "database-td--nowrap"}>
             <CellRenderer
               column={col}
               value={cellValue}

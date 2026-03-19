@@ -49,6 +49,8 @@ export interface DatabaseAppProps {
   readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
   /** Called to delete records by their IDs (file paths). */
   readonly onDeleteRecords?: (recordIds: readonly string[]) => void;
+  /** Optional view ID to show initially (used by codeblock embedding). */
+  readonly initialViewId?: string;
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -101,8 +103,10 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     onNavigateToNote, onRenameFile, onCreateRelationRecord, onDeleteRecords,
   } = props;
 
-  /** Find the default view (or fall back to first). */
-  const initialView = schema.views.find((v) => v.isDefault) ?? schema.views[0];
+  /** Find the initial view — by explicit ID, then default, then first. */
+  const initialView = props.initialViewId
+    ? schema.views.find((v) => v.id === props.initialViewId) ?? schema.views.find((v) => v.isDefault) ?? schema.views[0]
+    : schema.views.find((v) => v.isDefault) ?? schema.views[0];
   const [activeViewId, setActiveViewId] = useState<string>(
     initialView?.id ?? ""
   );
@@ -264,6 +268,15 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     }));
     onSchemaChange({ ...schema, views: updatedViews });
   }, [schema, onSchemaChange]);
+
+  /** Handle column resize — persist width into the active view's columnWidths. */
+  const handleColumnResize = useCallback((columnId: string, width: number) => {
+    if (!activeView || activeView.type !== "table") return;
+    const currentWidths = activeView.columnWidths ?? {};
+    const updatedView = { ...activeView, columnWidths: { ...currentWidths, [columnId]: width } };
+    const updatedViews = schema.views.map((v) => v.id === activeView.id ? updatedView : v);
+    onSchemaChange({ ...schema, views: updatedViews });
+  }, [activeView, schema, onSchemaChange]);
 
   const handleSearch = useCallback((query: string) => { setSearchQuery(query); }, []);
   const handleFilterChange = useCallback((filters: readonly FilterRule[]) => { setUserFilters(filters); }, []);
@@ -475,6 +488,36 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     setModalState({ mode: "closed" });
   }, [schema, modalState, onSchemaChange, onRemovePropertyFromAll, onCleanupBidirectionalLinks]);
 
+  /** Inline dropdown: save column config (called from TableHeader dropdown). */
+  const handleInlineSaveColumn = useCallback((column: ColumnDefinition, renames?: ReadonlyMap<string, string>) => {
+    const oldCol = schema.columns.find((c) => c.id === column.id);
+    if (oldCol && oldCol.type !== column.type && !isSameGroup(oldCol.type, column.type)) {
+      const cleaned = column.type === "select" || column.type === "multi-select" ? column : { ...column, options: undefined };
+      onSchemaChange(updateColumn(schema, column.id, cleaned));
+      onClearPropertyFromAll?.(column.id);
+    } else {
+      onSchemaChange(updateColumn(schema, column.id, column));
+      if (renames && renames.size > 0) {
+        for (const [oldName, newName] of renames) { onRenameOption?.(column.id, oldName, newName); }
+      }
+    }
+  }, [schema, onSchemaChange, onClearPropertyFromAll, onRenameOption]);
+
+  /** Inline dropdown: delete column by ID. */
+  const handleInlineDeleteColumn = useCallback((columnId: string) => {
+    const deletedCol = schema.columns.find((c) => c.id === columnId);
+    if (deletedCol && deletedCol.type === "relation" && deletedCol.bidirectional) {
+      onCleanupBidirectionalLinks?.(deletedCol);
+    }
+    onSchemaChange(removeColumn(schema, columnId));
+    onRemovePropertyFromAll?.(columnId);
+  }, [schema, onSchemaChange, onRemovePropertyFromAll, onCleanupBidirectionalLinks]);
+
+  /** Inline dropdown: delete option from a specific column. */
+  const handleInlineDeleteOption = useCallback((columnId: string, optionName: string) => {
+    onDeleteOption?.(columnId, optionName);
+  }, [onDeleteOption]);
+
   /** Get the column being edited or pre-filled for existing property. */
   const editingColumn = modalState.mode === "edit"
     ? schema.columns.find((c) => c.id === modalState.columnId)
@@ -537,6 +580,13 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         selectedRecordIds,
         onToggleSelect: handleToggleSelect,
         onToggleSelectAll: handleToggleSelectAll,
+        onColumnResize: handleColumnResize,
+        editingColumnId: modalState.mode === "edit" ? modalState.columnId : undefined,
+        existingColumnIds: existingIds,
+        onSaveColumn: handleInlineSaveColumn,
+        onDeleteColumn: handleInlineDeleteColumn,
+        onDeleteOptionInline: handleInlineDeleteOption,
+        folderPaths,
       })}
       {showAddMenu && undiscoveredProperties.length > 0 && (
         <>
@@ -630,6 +680,20 @@ interface RenderParams {
   readonly onToggleSelect?: (recordId: string) => void;
   /** Toggle select all records. */
   readonly onToggleSelectAll?: () => void;
+  /** Called when a column is resized via drag. */
+  readonly onColumnResize?: (columnId: string, width: number) => void;
+  /** Column ID currently being edited. */
+  readonly editingColumnId?: string;
+  /** All column IDs for uniqueness validation. */
+  readonly existingColumnIds?: readonly string[];
+  /** Called when column config is saved from inline dropdown. */
+  readonly onSaveColumn?: (column: ColumnDefinition, renames?: ReadonlyMap<string, string>) => void;
+  /** Called to delete a column from inline dropdown. */
+  readonly onDeleteColumn?: (columnId: string) => void;
+  /** Called to delete an option from inline dropdown. */
+  readonly onDeleteOptionInline?: (columnId: string, optionName: string) => void;
+  /** Folder paths for relation target autocomplete. */
+  readonly folderPaths?: readonly string[];
 }
 
 /** Dispatches rendering to the correct view component based on view type. */
@@ -655,6 +719,14 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           selectedRecordIds={params.selectedRecordIds}
           onToggleSelect={params.onToggleSelect}
           onToggleSelectAll={params.onToggleSelectAll}
+          columnWidths={view.columnWidths}
+          onColumnResize={params.onColumnResize}
+          editingColumnId={params.editingColumnId}
+          existingColumnIds={params.existingColumnIds}
+          onSaveColumn={params.onSaveColumn}
+          onDeleteColumn={params.onDeleteColumn}
+          onDeleteOption={params.onDeleteOptionInline}
+          folderPaths={params.folderPaths}
         />
       );
     case "kanban":

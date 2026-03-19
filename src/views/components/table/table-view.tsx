@@ -18,7 +18,7 @@ interface TableViewProps {
   readonly onClearSort?: () => void;
   readonly onOpenNote: (record: DatabaseRecord) => void;
   readonly onAddColumn?: () => void;
-  readonly onEditColumn?: (columnId: string) => void;
+  readonly onEditColumn?: (columnId: string, event?: MouseEvent) => void;
   /** Called to add a new option to a select/multi-select column. */
   readonly onAddOption?: (columnId: string, value: string, color: ColorKey) => void;
   /** Target records cache keyed by folder path — for relation pickers. */
@@ -35,6 +35,22 @@ interface TableViewProps {
   readonly onToggleSelect?: (recordId: string) => void;
   /** Toggle select all records. */
   readonly onToggleSelectAll?: () => void;
+  /** Per-column widths from view config. */
+  readonly columnWidths?: Readonly<Record<string, number>>;
+  /** Called when a column is resized via drag. */
+  readonly onColumnResize?: (columnId: string, width: number) => void;
+  /** Column ID currently being edited — keeps its gear icon visible. */
+  readonly editingColumnId?: string;
+  /** All column IDs for uniqueness validation. */
+  readonly existingColumnIds?: readonly string[];
+  /** Called when column config is saved from inline dropdown. */
+  readonly onSaveColumn?: (column: import("../../../types/schema").ColumnDefinition, renames?: ReadonlyMap<string, string>) => void;
+  /** Called to delete a column. */
+  readonly onDeleteColumn?: (columnId: string) => void;
+  /** Called to delete an option from a column. */
+  readonly onDeleteOption?: (columnId: string, optionName: string) => void;
+  /** Folder paths for relation target autocomplete. */
+  readonly folderPaths?: readonly string[];
 }
 
 /**
@@ -66,6 +82,14 @@ export function TableView({
   selectedRecordIds,
   onToggleSelect,
   onToggleSelectAll,
+  columnWidths,
+  onColumnResize,
+  editingColumnId,
+  existingColumnIds,
+  onSaveColumn,
+  onDeleteColumn,
+  onDeleteOption: onDeleteOptionProp,
+  folderPaths,
 }: TableViewProps) {
   /** Get visible columns — filter out hidden columns from the active view config. */
   const visibleColumns = useMemo(() => {
@@ -102,6 +126,14 @@ export function TableView({
           showSelectAll={!!onToggleSelectAll}
           allSelected={records.length > 0 && records.every((r) => selectedRecordIds?.has(r.id))}
           onToggleSelectAll={onToggleSelectAll}
+          columnWidths={columnWidths}
+          onColumnResize={onColumnResize}
+          editingColumnId={editingColumnId}
+          existingColumnIds={existingColumnIds}
+          onSaveColumn={onSaveColumn}
+          onDeleteColumn={onDeleteColumn}
+          onDeleteOption={onDeleteOptionProp}
+          folderPaths={folderPaths}
         />
         <tbody>
           {records.map((record) => (

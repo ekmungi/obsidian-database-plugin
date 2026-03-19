@@ -2,6 +2,7 @@
 
 import { Plugin, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import { DATABASE_VIEW_TYPE, DatabaseView } from "./views/database-view";
+import { registerDatabaseCodeblock } from "./views/codeblock-renderer";
 
 /** File extension for database view entry points visible in the file explorer. */
 const DBVIEW_EXTENSION = "dbview";
@@ -15,6 +16,9 @@ export default class DatabasePlugin extends Plugin {
 
     // Register .dbview extension so clicking it in the explorer opens our view
     this.registerExtensions([DBVIEW_EXTENSION], DATABASE_VIEW_TYPE);
+
+    // Register ```database``` codeblock processor for inline embedding
+    registerDatabaseCodeblock(this);
 
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {

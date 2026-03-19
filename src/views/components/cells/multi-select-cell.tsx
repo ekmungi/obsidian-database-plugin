@@ -108,7 +108,7 @@ export function MultiSelectCell({
         class="cell-display"
         onClick={handleClick}
         tabIndex={0}
-        style={{ flexWrap: "wrap", gap: "4px" }}
+        style={{ gap: "4px" }}
       >
         {selected.length > 0 ? (
           selected.map((val) => (

@@ -68,6 +68,8 @@ export interface ColumnDefinition {
   readonly formula?: string;
   /** Column width in pixels (optional, for table view). */
   readonly width?: number;
+  /** When true, cell text wraps instead of truncating with ellipsis. Default: false. */
+  readonly wrapText?: boolean;
 }
 
 /** Sort direction for view configurations. */
@@ -120,6 +122,8 @@ export interface TableViewConfig extends BaseViewConfig {
   readonly type: "table";
   readonly sort?: readonly SortRule[];
   readonly groupBy?: string;
+  /** Per-column widths in pixels, keyed by column ID. */
+  readonly columnWidths?: Readonly<Record<string, number>>;
 }
 
 /** Kanban-specific view configuration. */

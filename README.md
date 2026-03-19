@@ -25,7 +25,10 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Filter** -- filter by any column with operators (is, is not, contains, is empty, etc.). Filter values come from your actual data.
 - **Search** -- full-text search across all fields via the magnifying glass icon.
 - **Column visibility** -- hide/show columns per view via the eye icon dropdown. `db-view-type` column is auto-hidden when the filter is active.
-- **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. "+" button discovers existing frontmatter properties. File column label is editable but type is locked.
+- **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. Gear icon opens an inline dropdown (not a modal). Per-column "Wrap text" toggle. "+" button discovers existing frontmatter properties. File column label is editable but type is locked.
+- **Column resize** -- drag the right edge of any column header to resize. Widths persist per view in the schema. Minimum width matches the column title length.
+- **Text overflow** -- by default, long text truncates with ellipsis. Enable "Wrap text" per column to show full content. Applies to text, file names, relations, and multi-select tags.
+- **Relation tags** -- linked notes display as styled pill tags with a subtle gray background. Clickable to navigate to the note.
 - **Database settings** -- gear dropdown for database name, template folder (with folder autocomplete), and view type filter.
 - **Property type sync** -- column types sync to Obsidian's `types.json` so the Properties editor shows the correct input widgets.
 - **Schema-level filter** -- set `dbViewType` in settings to show only files whose `db-view-type` frontmatter matches. Enables multiple databases in one folder.
@@ -34,6 +37,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Live updates** -- file changes, renames, and deletions are reflected immediately in the view.
 - **View management** -- Notion-style tabs for views. Create new table/kanban/calendar views with the "+" button, rename by double-clicking, right-click for context menu (rename, set as default, delete). Sort and filter state persists per view.
 - **View persistence** -- database views survive Obsidian restarts. Tab title shows the database name.
+- **Codeblock embedding** -- embed interactive database views inside any markdown note using a ` ```database ` codeblock. Full editing, live updates, and view selection. Great for dashboards and project pages.
 - **Theme-aware** -- inherits all styles from your Obsidian theme via CSS variables. Select tag colors use a Notion-inspired palette.
 
 ## Getting started
@@ -101,6 +105,26 @@ To link between databases, add a relation column with `target` pointing to anoth
 
 The reverse column (`project`) is auto-created in the target database's schema with matching bidirectional config. Back-links are synced automatically when relations are added or removed.
 
+### Codeblock embedding
+
+Embed a database view inside any note using a fenced codeblock:
+
+````markdown
+```database
+source: Projects
+view: Main
+maxHeight: 400
+```
+````
+
+| Property | Required | Description |
+|----------|----------|-------------|
+| `source` | Yes | Folder path containing the `.database.json` schema |
+| `view` | No | View name (e.g., `Main`) or type (e.g., `kanban`). Falls back to default view. |
+| `maxHeight` | No | Max height in pixels. If set, the view scrolls vertically beyond this height. By default, the view expands to show all rows. |
+
+The embedded view is fully interactive -- you can edit cells, add records, sort, and filter just like in a tab. Multiple codeblocks (same or different databases) work independently. Edits in one view are reflected in all others showing the same data.
+
 ### Available colors
 
 `gray`, `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `brown`
@@ -115,7 +139,7 @@ The reverse column (`project`) is auto-created in the target database's schema w
 npm install
 npm run dev       # watch mode
 npm run build     # production build
-npm test          # run tests (234 tests)
+npm test          # run tests (256 tests)
 ```
 
 ### Architecture
@@ -125,6 +149,8 @@ Three-layer design:
 1. **Data Layer** (`src/data/`) -- frontmatter parsing, file indexing, caching, change watching
 2. **Database Engine** (`src/engine/`) -- schema management, query/filter/sort, relation resolution, rollups
 3. **View Layer** (`src/views/`) -- Preact components for table, kanban, calendar, cell editors, toolbar
+
+The `DatabaseController` (`src/views/database-controller.ts`) is a shared data layer used by both the tab-based `DatabaseView` and the codeblock renderer. It manages schema, records, file events, and all mutation handlers. The view wrappers are thin: `DatabaseView` (~140 lines) delegates to the controller for all data operations.
 
 ### Tech stack
 
@@ -136,8 +162,6 @@ Three-layer design:
 
 ## Roadmap
 
-- Recursive subfolder scanning
-- Codeblock embedding (inline database views in notes)
 - Customizable color schemes
 - Gallery and timeline views
 - Formula column support

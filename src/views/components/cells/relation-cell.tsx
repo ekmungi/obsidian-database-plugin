@@ -1,4 +1,4 @@
-/** Relation cell — displays wikilinks as clickable tags, opens picker for editing. */
+/** Relation cell — displays wikilinks as clickable pill tags, opens picker for editing. */
 
 import { h } from "preact";
 import { useState, useCallback } from "preact/hooks";
@@ -112,20 +112,16 @@ export function RelationCell({
         class="cell-display"
         onClick={handleCellClick}
         tabIndex={0}
-        style={{ flexWrap: "wrap", gap: "4px", cursor: targetRecords ? "pointer" : "default" }}
+        style={{ cursor: targetRecords ? "pointer" : "default" }}
       >
         {noteNames.length > 0 ? (
-          noteNames.map((name, idx) => (
-            <span key={name}>
-              <span
-                class="database-link"
-                onClick={(e) => handleTagClick(name, e)}
-              >
-                {name}
-              </span>
-              {idx < noteNames.length - 1 && (
-                <span style={{ color: "var(--text-muted)", margin: "0 2px" }}>,</span>
-              )}
+          noteNames.map((name) => (
+            <span
+              key={name}
+              class="relation-tag"
+              onClick={(e) => handleTagClick(name, e)}
+            >
+              {name}
             </span>
           ))
         ) : (

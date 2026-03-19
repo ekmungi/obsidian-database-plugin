@@ -1,7 +1,7 @@
 {
   "id": "obsidian-database-plugin",
   "name": "Database Views",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "minAppVersion": "1.4.0",
   "description": "Notion-like database views — interactive tables, kanban boards, and calendars over your markdown files with inline editing and bidirectional relations.",
   "author": "ekmun",
