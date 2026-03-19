@@ -432,6 +432,7 @@ export class DatabaseView extends ItemView {
         onNavigateToNote: this.handleNavigateToNote,
         onRenameFile: this.handleRenameFile,
         onCreateRelationRecord: this.handleCreateRelationRecord,
+        onDeleteRecords: this.handleDeleteRecords,
         folderPaths: this.getVaultFolderPaths(),
         targetRecordsByFolder: new Map(this.targetRecordsCache),
       }),
@@ -644,6 +645,33 @@ export class DatabaseView extends ItemView {
     } catch (err) {
       console.error(`Database Plugin: Failed to rename "${recordId}" to "${newPath}"`, err);
     }
+  };
+
+  /** Delete multiple records — cleans up bidirectional back-links, then deletes files. */
+  private handleDeleteRecords = async (
+    recordIds: readonly string[]
+  ): Promise<void> => {
+    for (const recordId of recordIds) {
+      const record = this.records.find((r) => r.id === recordId);
+      if (!record) continue;
+
+      // Clean up bidirectional back-links before deleting
+      await this.cleanupBacklinksForRecord(record);
+
+      // Delete the file
+      const file = this.app.vault.getAbstractFileByPath(recordId);
+      if (file instanceof TFile) {
+        try {
+          await this.app.vault.delete(file);
+        } catch (err) {
+          console.error(`Database Plugin: Failed to delete "${recordId}"`, err);
+        }
+      }
+    }
+    // Records will be removed by the delete event handler, but let's also update immediately
+    const deletedSet = new Set(recordIds);
+    this.records = this.records.filter((r) => !deletedSet.has(r.id));
+    this.renderApp();
   };
 
   /** Create a new record in a target relation folder with default frontmatter from its schema. */

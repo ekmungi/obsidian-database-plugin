@@ -24,6 +24,10 @@ interface TableRowProps {
   readonly onRenameFile?: (recordId: string, newName: string) => void;
   /** Create a new record in a target relation folder. */
   readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
+  /** Whether this row is selected. */
+  readonly selected?: boolean;
+  /** Toggle selection of this row. */
+  readonly onToggleSelect?: () => void;
 }
 
 /**
@@ -46,6 +50,8 @@ export function TableRow({
   onNavigateToNote,
   onRenameFile,
   onCreateRelationRecord,
+  selected,
+  onToggleSelect,
 }: TableRowProps) {
   /** Handle cell value change, wrapping with the field name. */
   const handleChange = useCallback(
@@ -85,7 +91,16 @@ export function TableRow({
   }, [nameValue, record.id, record.name, onRenameFile]);
 
   return (
-    <tr>
+    <tr class={selected ? "database-row--selected" : ""}>
+      {onToggleSelect && (
+        <td style={{ width: "32px", padding: "4px", textAlign: "center", verticalAlign: "middle" }}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+          />
+        </td>
+      )}
       {columns.map((col) => {
         // File column: click text to navigate, click cell area to edit
         if (col.type === "file") {

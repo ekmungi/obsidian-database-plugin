@@ -371,6 +371,29 @@
   text-decoration: underline;
 }
 
+tr.database-row--selected {
+  background: var(--background-modifier-hover);
+}
+
+.database-btn--delete {
+  display: flex;
+  align-items: center;
+  background: rgba(220, 80, 80, 0.12);
+  color: #c25050;
+  border: 1px solid rgba(220, 80, 80, 0.25);
+  border-radius: var(--radius-s);
+  padding: 4px 10px;
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.database-btn--delete:hover {
+  background: rgba(220, 80, 80, 0.22);
+  border-color: rgba(220, 80, 80, 0.4);
+}
+
 .database-edit-icon {
   opacity: 0;
   cursor: pointer;

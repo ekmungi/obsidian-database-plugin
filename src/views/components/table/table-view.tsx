@@ -29,6 +29,12 @@ interface TableViewProps {
   readonly onRenameFile?: (recordId: string, newName: string) => void;
   /** Create a new record in a target relation folder. */
   readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
+  /** Selected record IDs for bulk operations. */
+  readonly selectedRecordIds?: ReadonlySet<string>;
+  /** Toggle selection of a record. */
+  readonly onToggleSelect?: (recordId: string) => void;
+  /** Toggle select all records. */
+  readonly onToggleSelectAll?: () => void;
 }
 
 /**
@@ -57,6 +63,9 @@ export function TableView({
   onNavigateToNote,
   onRenameFile,
   onCreateRelationRecord,
+  selectedRecordIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }: TableViewProps) {
   /** Get visible columns — filter out hidden columns from the active view config. */
   const visibleColumns = useMemo(() => {
@@ -90,6 +99,9 @@ export function TableView({
           onSort={onSort}
           onAddColumn={onAddColumn}
           onEditColumn={onEditColumn}
+          showSelectAll={!!onToggleSelectAll}
+          allSelected={records.length > 0 && records.every((r) => selectedRecordIds?.has(r.id))}
+          onToggleSelectAll={onToggleSelectAll}
         />
         <tbody>
           {records.map((record) => (
@@ -107,6 +119,8 @@ export function TableView({
               onNavigateToNote={onNavigateToNote}
               onRenameFile={onRenameFile}
               onCreateRelationRecord={onCreateRelationRecord}
+              selected={selectedRecordIds?.has(record.id) ?? false}
+              onToggleSelect={onToggleSelect ? () => onToggleSelect(record.id) : undefined}
             />
           ))}
         </tbody>

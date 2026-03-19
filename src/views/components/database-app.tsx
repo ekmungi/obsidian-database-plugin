@@ -47,6 +47,8 @@ export interface DatabaseAppProps {
   readonly onRenameFile?: (recordId: string, newName: string) => void;
   /** Called to create a new record in a target relation folder. */
   readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
+  /** Called to delete records by their IDs (file paths). */
+  readonly onDeleteRecords?: (recordIds: readonly string[]) => void;
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -96,7 +98,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     onSchemaChange, onAddPropertyToAll, onRemovePropertyFromAll,
     onClearPropertyFromAll, onRenameOption, onDeleteOption, folderPaths,
     targetRecordsByFolder, onCleanupBidirectionalLinks,
-    onNavigateToNote, onRenameFile, onCreateRelationRecord,
+    onNavigateToNote, onRenameFile, onCreateRelationRecord, onDeleteRecords,
   } = props;
 
   const [activeViewId, setActiveViewId] = useState<string>(
@@ -112,6 +114,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     return [{ column: "name", dir: "asc" as const }];
   });
   const [modalState, setModalState] = useState<ModalState>({ mode: "closed" });
+  const [selectedRecordIds, setSelectedRecordIds] = useState<ReadonlySet<string>>(new Set());
 
   const activeView: ViewConfig | undefined = useMemo(
     () => schema.views.find((v) => v.id === activeViewId) ?? schema.views[0],
@@ -175,6 +178,31 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
   const handleSearch = useCallback((query: string) => { setSearchQuery(query); }, []);
   const handleFilterChange = useCallback((filters: readonly FilterRule[]) => { setUserFilters(filters); }, []);
   const handleNewRecord = useCallback(() => { onNewRecord(null); }, [onNewRecord]);
+
+  /** Toggle a single record's selection. */
+  const handleToggleSelect = useCallback((recordId: string) => {
+    setSelectedRecordIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(recordId)) { next.delete(recordId); } else { next.add(recordId); }
+      return next;
+    });
+  }, []);
+
+  /** Toggle select all visible records. */
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectedRecordIds((prev) => {
+      const allIds = processedRecords.map((r) => r.id);
+      const allSelected = allIds.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(allIds);
+    });
+  }, [processedRecords]);
+
+  /** Delete all selected records. */
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRecordIds.size === 0) return;
+    onDeleteRecords?.([...selectedRecordIds]);
+    setSelectedRecordIds(new Set());
+  }, [selectedRecordIds, onDeleteRecords]);
 
   /** Toggle a column's visibility in the active view's hiddenColumns. */
   const handleToggleColumnVisibility = useCallback((columnId: string) => {
@@ -392,6 +420,8 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         folderPaths={folderPaths}
         hiddenColumns={activeView.hiddenColumns}
         onToggleColumnVisibility={handleToggleColumnVisibility}
+        selectedCount={selectedRecordIds.size}
+        onDeleteSelected={handleDeleteSelected}
       />
       {renderActiveView(activeView, {
         schema,
@@ -409,6 +439,9 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         onNavigateToNote,
         onRenameFile,
         onCreateRelationRecord,
+        selectedRecordIds,
+        onToggleSelect: handleToggleSelect,
+        onToggleSelectAll: handleToggleSelectAll,
       })}
       {showAddMenu && undiscoveredProperties.length > 0 && (
         <>
@@ -496,6 +529,12 @@ interface RenderParams {
   readonly onRenameFile?: (recordId: string, newName: string) => void;
   /** Create a new record in a target relation folder. */
   readonly onCreateRelationRecord?: (targetFolder: string, name: string) => void;
+  /** Selected record IDs for bulk operations. */
+  readonly selectedRecordIds?: ReadonlySet<string>;
+  /** Toggle selection of a record. */
+  readonly onToggleSelect?: (recordId: string) => void;
+  /** Toggle select all records. */
+  readonly onToggleSelectAll?: () => void;
 }
 
 /** Dispatches rendering to the correct view component based on view type. */
@@ -518,6 +557,9 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           onNavigateToNote={params.onNavigateToNote}
           onRenameFile={params.onRenameFile}
           onCreateRelationRecord={params.onCreateRelationRecord}
+          selectedRecordIds={params.selectedRecordIds}
+          onToggleSelect={params.onToggleSelect}
+          onToggleSelectAll={params.onToggleSelectAll}
         />
       );
     case "kanban":

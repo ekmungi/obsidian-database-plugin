@@ -11,6 +11,12 @@ interface TableHeaderProps {
   readonly onSort: (columnId: string, shiftKey: boolean) => void;
   readonly onAddColumn?: () => void;
   readonly onEditColumn?: (columnId: string) => void;
+  /** Whether to show the select-all checkbox. */
+  readonly showSelectAll?: boolean;
+  /** Whether all rows are currently selected. */
+  readonly allSelected?: boolean;
+  /** Toggle select all. */
+  readonly onToggleSelectAll?: () => void;
 }
 
 /** SVG calendar icon for date columns. */
@@ -80,10 +86,20 @@ function getSortDir(
  * @param props.onSort - Called with column ID when header is clicked.
  * @param props.onColumnResize - Called when a column is resized (future).
  */
-export function TableHeader({ columns, sort, onSort, onAddColumn, onEditColumn }: TableHeaderProps) {
+export function TableHeader({ columns, sort, onSort, onAddColumn, onEditColumn, showSelectAll, allSelected, onToggleSelectAll }: TableHeaderProps) {
   return (
     <thead>
       <tr>
+        {showSelectAll && (
+          <th style={{ width: "32px", padding: "4px", textAlign: "center", verticalAlign: "middle" }}>
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onToggleSelectAll}
+              title="Select all"
+            />
+          </th>
+        )}
         {columns.map((col) => {
           const sortDir = getSortDir(col.id, sort);
           const sortIdx = getSortIndex(col.id, sort);

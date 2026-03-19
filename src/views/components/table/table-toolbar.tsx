@@ -20,6 +20,10 @@ interface TableToolbarProps {
   readonly hiddenColumns?: readonly string[];
   readonly onToggleColumnVisibility?: (columnId: string) => void;
   readonly folderPaths?: readonly string[];
+  /** Number of currently selected records. */
+  readonly selectedCount?: number;
+  /** Called to delete all selected records. */
+  readonly onDeleteSelected?: () => void;
 }
 
 /** SVG icon components for each view type — monochrome, inherits currentColor. */
@@ -84,6 +88,8 @@ export function TableToolbar({
   hiddenColumns,
   onToggleColumnVisibility,
   folderPaths,
+  selectedCount,
+  onDeleteSelected,
 }: TableToolbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -334,6 +340,24 @@ export function TableToolbar({
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
+
+      {/* Delete selected button — soft red, only visible when records are selected */}
+      {(selectedCount ?? 0) > 0 && onDeleteSelected && (
+        <button
+          class="database-btn database-btn--delete"
+          onClick={onDeleteSelected}
+          title={`Delete ${selectedCount} selected`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+          </svg>
+          <span style={{ marginLeft: "4px" }}>Delete ({selectedCount})</span>
+        </button>
+      )}
 
       {/* Search input with magnifying glass icon */}
       <div style={{ position: "relative", display: "flex", alignItems: "center", flexShrink: 0 }}>

@@ -15,12 +15,17 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 ## Features
 
 - **Inline editing** -- click any cell to edit. Supports text, number, date, select, multi-select, checkbox, and relation columns.
-- **Sort** -- click column headers to sort, or use the sort dropdown for multi-level sort rules.
+- **Inline file rename** -- click the cell area around a file name to rename it. Click the name link to open the note.
+- **Relations with picker** -- searchable dropdown for linking to notes in other database folders. Respects the target database's `dbViewType` filter. Create new entries directly from the picker.
+- **Bidirectional relations** -- per-column toggle that auto-creates the reverse column in the target database. Adding or removing a link automatically syncs the back-link. Deleting a relation column or record cleans up all back-links.
+- **Cross-view refresh** -- changes to relations, schema, or records automatically refresh any other open database view affected by the change.
+- **Row selection and bulk delete** -- checkbox on each row with select-all in the header. Soft red delete button appears in the toolbar when records are selected. Deleting cleans up all bidirectional back-links.
+- **Sort** -- click column headers to sort, Shift+click for multi-level sort. Sort dropdown for manual rule management.
 - **Filter** -- filter by any column with operators (is, is not, contains, is empty, etc.). Filter values come from your actual data.
 - **Search** -- full-text search across all fields via the magnifying glass icon.
-- **Column visibility** -- hide/show columns per view via the eye icon dropdown. Hidden columns persist in the schema.
-- **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. "+" button discovers existing frontmatter properties.
-- **Database settings** -- gear dropdown for database name, template folder (with autocomplete), and view type filter.
+- **Column visibility** -- hide/show columns per view via the eye icon dropdown. `db-view-type` column is auto-hidden when the filter is active.
+- **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. "+" button discovers existing frontmatter properties. File column label is editable but type is locked.
+- **Database settings** -- gear dropdown for database name, template folder (with folder autocomplete), and view type filter.
 - **Property type sync** -- column types sync to Obsidian's `types.json` so the Properties editor shows the correct input widgets.
 - **Schema-level filter** -- set `dbViewType` in settings to show only files whose `db-view-type` frontmatter matches. Enables multiple databases in one folder.
 - **New records** -- "+ New" button creates a note with default frontmatter from the schema (including `db-view-type` if configured) and opens it for editing.
@@ -73,8 +78,26 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 | `select` | Single-select with colors | `key: [Value]` |
 | `multi-select` | Multi-select with colors | `key: [A, B]` |
 | `checkbox` | Boolean toggle | `key: true` |
-| `relation` | Link to notes in another folder | `key: [[Note]]` |
+| `relation` | Link to notes in another folder (with picker and bidirectional sync) | `key: "[[Note]]"` |
 | `rollup` | Computed from relations | (read-only) |
+
+### Relation columns
+
+To link between databases, add a relation column with `target` pointing to another database folder. Enable bidirectional sync to auto-create a reverse column in the target:
+
+```json
+{
+  "id": "tasks",
+  "type": "relation",
+  "label": "Tasks",
+  "target": "Tasks",
+  "multiple": true,
+  "bidirectional": true,
+  "reverseColumnId": "project"
+}
+```
+
+The reverse column (`project`) is auto-created in the target database's schema with matching bidirectional config. Back-links are synced automatically when relations are added or removed.
 
 ### Available colors
 
@@ -86,7 +109,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 npm install
 npm run dev       # watch mode
 npm run build     # production build
-npm test          # run tests (228 tests)
+npm test          # run tests (234 tests)
 ```
 
 ### Architecture
@@ -107,11 +130,11 @@ Three-layer design:
 
 ## Roadmap
 
-- Relations with filtered target lookup
 - Recursive subfolder scanning
 - Codeblock embedding (inline database views in notes)
 - Customizable color schemes
 - Gallery and timeline views
+- Formula column support
 
 ## License
 
