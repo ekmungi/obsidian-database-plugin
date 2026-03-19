@@ -51,6 +51,147 @@
   color: var(--text-normal);
 }
 
+/* ── View Tabs (Notion-style) ─────────────── */
+.database-view-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.database-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+  user-select: none;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.database-view-tab:hover {
+  color: var(--text-normal);
+  border-bottom-color: var(--background-modifier-border-hover);
+}
+
+.database-view-tab--active {
+  color: var(--text-normal);
+  border-bottom-color: var(--interactive-accent);
+}
+
+.database-view-tab--add {
+  color: var(--text-faint);
+  padding: 4px 6px;
+  border-bottom: 2px solid transparent;
+}
+
+.database-view-tab--add:hover {
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  border-radius: var(--radius-s);
+  border-bottom-color: transparent;
+}
+
+.database-view-tab__icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.database-view-tab__name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.database-view-tab__rename-input {
+  width: 80px;
+  padding: 1px 4px;
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  outline: none;
+}
+
+.database-view-tab__default-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-faint);
+  margin-left: 2px;
+}
+
+.database-view-tabs__add-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  min-width: 140px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+  padding: 4px;
+}
+
+.database-view-tabs__add-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.database-view-tabs__add-option:hover {
+  background: var(--background-modifier-hover);
+}
+
+.database-view-tabs__context-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 160px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+  padding: 4px;
+}
+
+.database-view-tabs__context-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.database-view-tabs__context-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.database-view-tabs__context-item--danger {
+  color: var(--text-error);
+}
+
+.database-view-tabs__context-item--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.database-view-tabs__context-item--disabled:hover {
+  background: transparent;
+}
+
 /* ── Table View ────────────────────────────── */
 .database-table {
   flex: 1;

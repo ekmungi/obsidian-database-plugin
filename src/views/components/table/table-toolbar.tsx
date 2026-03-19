@@ -1,9 +1,10 @@
-/** Table toolbar — view switcher, search, filter, and new record button. */
+/** Table toolbar — view tabs, search, filter, sort, and new record button. */
 
 import { h } from "preact";
 import { useState, useCallback, useEffect, useRef } from "preact/hooks";
 import type { DatabaseSchema, ViewType, ColumnDefinition, FilterRule, FilterOperator, SortRule, SortDirection } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
+import { ViewTabs } from "./view-tabs";
 
 /** Props for the TableToolbar component. */
 interface TableToolbarProps {
@@ -24,35 +25,17 @@ interface TableToolbarProps {
   readonly selectedCount?: number;
   /** Called to delete all selected records. */
   readonly onDeleteSelected?: () => void;
+  /** Called to add a new view of the given type. */
+  readonly onAddView?: (type: ViewType) => void;
+  /** Called to delete a view by ID. */
+  readonly onDeleteView?: (viewId: string) => void;
+  /** Called to rename a view. */
+  readonly onRenameView?: (viewId: string, name: string) => void;
+  /** Called to set a view as the default. */
+  readonly onSetDefaultView?: (viewId: string) => void;
 }
 
-/** SVG icon components for each view type — monochrome, inherits currentColor. */
-const VIEW_ICONS: Record<ViewType, () => h.JSX.Element> = {
-  table: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <line x1="3" y1="9" x2="21" y2="9" />
-      <line x1="3" y1="15" x2="21" y2="15" />
-      <line x1="9" y1="3" x2="9" y2="21" />
-      <line x1="15" y1="3" x2="15" y2="21" />
-    </svg>
-  ),
-  kanban: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="5" height="16" rx="1" />
-      <rect x="10" y="3" width="5" height="10" rx="1" />
-      <rect x="17" y="3" width="5" height="13" rx="1" />
-    </svg>
-  ),
-  calendar: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  ),
-};
+/** Note: View type icons have been moved to view-tabs.tsx */
 
 /** Human-readable operator labels. */
 const OPERATOR_LABELS: Record<FilterOperator, string> = {
@@ -90,6 +73,10 @@ export function TableToolbar({
   folderPaths,
   selectedCount,
   onDeleteSelected,
+  onAddView,
+  onDeleteView,
+  onRenameView,
+  onSetDefaultView,
 }: TableToolbarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -320,28 +307,16 @@ export function TableToolbar({
 
   return (
     <div class="database-toolbar">
-      {/* View switcher tabs */}
-      <div style={{ display: "flex", gap: "2px", flexShrink: 0 }}>
-        {schema.views.map((view) => {
-          const isActive = view.id === activeViewId;
-          const IconComponent = VIEW_ICONS[view.type];
-          return (
-            <button
-              key={view.id}
-              onClick={() => onViewChange(view.id)}
-              style={
-                isActive
-                  ? { background: "var(--background-modifier-hover)", color: "var(--text-normal)" }
-                  : undefined
-              }
-              title={view.name ?? view.type}
-            >
-              {IconComponent ? <IconComponent /> : <span>{view.type}</span>}
-              <span>{view.name ?? view.type}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Notion-style view tabs */}
+      <ViewTabs
+        views={schema.views}
+        activeViewId={activeViewId}
+        onViewChange={onViewChange}
+        onAddView={onAddView}
+        onDeleteView={onDeleteView}
+        onRenameView={onRenameView}
+        onSetDefaultView={onSetDefaultView}
+      />
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />

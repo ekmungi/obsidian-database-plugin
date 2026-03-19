@@ -4,7 +4,7 @@ import { h } from "preact";
 import { useState, useCallback, useMemo, useEffect } from "preact/hooks";
 import type {
   DatabaseSchema, ViewConfig, CellValue, SortRule, SortDirection,
-  FilterRule, ColumnDefinition, ColumnType, ColorKey,
+  FilterRule, ColumnDefinition, ColumnType, ColorKey, ViewType,
 } from "../../types";
 import type { DatabaseRecord } from "../../types/record";
 import { filterByDbViewType, filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
@@ -101,15 +101,18 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     onNavigateToNote, onRenameFile, onCreateRelationRecord, onDeleteRecords,
   } = props;
 
+  /** Find the default view (or fall back to first). */
+  const initialView = schema.views.find((v) => v.isDefault) ?? schema.views[0];
   const [activeViewId, setActiveViewId] = useState<string>(
-    schema.views.length > 0 ? schema.views[0].id : ""
+    initialView?.id ?? ""
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [userFilters, setUserFilters] = useState<readonly FilterRule[]>([]);
+  const [userFilters, setUserFilters] = useState<readonly FilterRule[]>(
+    () => initialView?.filters ?? []
+  );
   const [sort, setSort] = useState<readonly SortRule[]>(() => {
-    const firstView = schema.views[0];
-    if (firstView?.type === "table" && firstView.sort && firstView.sort.length > 0) {
-      return firstView.sort;
+    if (initialView?.type === "table" && initialView.sort && initialView.sort.length > 0) {
+      return initialView.sort;
     }
     return [{ column: "name", dir: "asc" as const }];
   });
@@ -165,15 +168,102 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     setSort([{ column: "name", dir: "asc" }]);
   }, []);
 
+  /** Save current sort/filters into the active view config in schema. */
+  const persistCurrentViewState = useCallback(() => {
+    if (!activeView) return;
+    const updatedView: ViewConfig = activeView.type === "table"
+      ? { ...activeView, sort, filters: userFilters.length > 0 ? userFilters : undefined }
+      : { ...activeView, filters: userFilters.length > 0 ? userFilters : undefined };
+    const viewChanged = JSON.stringify(updatedView) !== JSON.stringify(activeView);
+    if (viewChanged) {
+      const updatedViews = schema.views.map((v) => v.id === activeView.id ? updatedView : v);
+      onSchemaChange({ ...schema, views: updatedViews });
+    }
+  }, [activeView, sort, userFilters, schema, onSchemaChange]);
+
   const handleViewChange = useCallback((viewId: string) => {
+    // Save current view's sort/filters before switching
+    persistCurrentViewState();
     setActiveViewId(viewId);
     const view = schema.views.find((v) => v.id === viewId);
+    // Load sort from the new view
     if (view?.type === "table" && view.sort) {
       setSort(view.sort);
     } else {
       setSort([]);
     }
-  }, [schema.views]);
+    // Load filters from the new view
+    setUserFilters(view?.filters ?? []);
+  }, [schema.views, persistCurrentViewState]);
+
+  /** Create a new view of the given type. */
+  const handleAddView = useCallback((type: ViewType) => {
+    const existingOfType = schema.views.filter((v) => v.type === type);
+    const name = `${type.charAt(0).toUpperCase() + type.slice(1)} ${existingOfType.length + 1}`;
+    const id = `${type}-${Date.now()}`;
+    let newView: ViewConfig;
+    if (type === "kanban") {
+      const groupCol = schema.columns.find((c) => c.type === "select" || c.type === "multi-select")
+        ?? schema.columns.find((c) => c.type !== "file");
+      newView = { id, type: "kanban", name, groupBy: groupCol?.id ?? "name" };
+    } else if (type === "calendar") {
+      const dateCol = schema.columns.find((c) => c.type === "date")
+        ?? schema.columns.find((c) => c.type !== "file");
+      newView = { id, type: "calendar", name, dateField: dateCol?.id ?? "name" };
+    } else {
+      newView = { id, type: "table", name, sort: [{ column: "name", dir: "asc" }] };
+    }
+    // If this is the first view, make it default
+    const isFirst = schema.views.length === 0;
+    const viewToAdd = isFirst ? { ...newView, isDefault: true } : newView;
+    onSchemaChange({ ...schema, views: [...schema.views, viewToAdd] });
+    setActiveViewId(id);
+    // Load new view's state
+    if (newView.type === "table" && newView.sort) {
+      setSort(newView.sort);
+    } else {
+      setSort([]);
+    }
+    setUserFilters([]);
+  }, [schema, onSchemaChange]);
+
+  /** Delete a view (blocked if isDefault). */
+  const handleDeleteView = useCallback((viewId: string) => {
+    const view = schema.views.find((v) => v.id === viewId);
+    if (!view || view.isDefault || schema.views.length <= 1) return;
+    const updatedViews = schema.views.filter((v) => v.id !== viewId);
+    onSchemaChange({ ...schema, views: updatedViews });
+    // If deleted view was active, switch to the default or first view
+    if (activeViewId === viewId) {
+      const defaultView = updatedViews.find((v) => v.isDefault) ?? updatedViews[0];
+      if (defaultView) {
+        setActiveViewId(defaultView.id);
+        if (defaultView.type === "table" && defaultView.sort) {
+          setSort(defaultView.sort);
+        } else {
+          setSort([]);
+        }
+        setUserFilters(defaultView.filters ?? []);
+      }
+    }
+  }, [schema, onSchemaChange, activeViewId]);
+
+  /** Rename a view. */
+  const handleRenameView = useCallback((viewId: string, name: string) => {
+    const updatedViews = schema.views.map((v) =>
+      v.id === viewId ? { ...v, name } : v
+    );
+    onSchemaChange({ ...schema, views: updatedViews });
+  }, [schema, onSchemaChange]);
+
+  /** Set a view as default (remove isDefault from all others). */
+  const handleSetDefaultView = useCallback((viewId: string) => {
+    const updatedViews = schema.views.map((v) => ({
+      ...v,
+      isDefault: v.id === viewId ? true : undefined,
+    }));
+    onSchemaChange({ ...schema, views: updatedViews });
+  }, [schema, onSchemaChange]);
 
   const handleSearch = useCallback((query: string) => { setSearchQuery(query); }, []);
   const handleFilterChange = useCallback((filters: readonly FilterRule[]) => { setUserFilters(filters); }, []);
@@ -423,6 +513,10 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         onToggleColumnVisibility={handleToggleColumnVisibility}
         selectedCount={selectedRecordIds.size}
         onDeleteSelected={handleDeleteSelected}
+        onAddView={handleAddView}
+        onDeleteView={handleDeleteView}
+        onRenameView={handleRenameView}
+        onSetDefaultView={handleSetDefaultView}
       />
       {renderActiveView(activeView, {
         schema,

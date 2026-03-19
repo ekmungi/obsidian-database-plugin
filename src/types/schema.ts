@@ -109,6 +109,10 @@ export interface BaseViewConfig {
   readonly name?: string;
   readonly filters?: readonly FilterRule[];
   readonly hiddenColumns?: readonly string[];
+  /** Marks this view as the default — cannot be deleted. */
+  readonly isDefault?: boolean;
+  /** Optional custom icon name from the Obsidian/Lucide icon set. */
+  readonly icon?: string;
 }
 
 /** Table-specific view configuration. */

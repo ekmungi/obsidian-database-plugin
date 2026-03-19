@@ -32,6 +32,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **New records** -- "+ New" button creates a note with default frontmatter from the schema (including `db-view-type` if configured) and opens it for editing.
 - **File explorer entry** -- a `.dbview` file is created in each database folder. Click it to open the database view.
 - **Live updates** -- file changes, renames, and deletions are reflected immediately in the view.
+- **View management** -- Notion-style tabs for views. Create new table/kanban/calendar views with the "+" button, rename by double-clicking, right-click for context menu (rename, set as default, delete). Sort and filter state persists per view.
 - **View persistence** -- database views survive Obsidian restarts. Tab title shows the database name.
 - **Theme-aware** -- inherits all styles from your Obsidian theme via CSS variables. Select tag colors use a Notion-inspired palette.
 
