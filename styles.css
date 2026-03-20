@@ -257,6 +257,34 @@
   opacity: 1 !important;
 }
 
+/* ── Column Drag-to-Reorder ──────────────── */
+.column-drop-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--interactive-accent);
+  z-index: 10;
+  pointer-events: none;
+  border-radius: 2px;
+}
+
+.column-drop-indicator--left {
+  left: -1px;
+}
+
+.column-drop-indicator--right {
+  right: -1px;
+}
+
+.database-table th[draggable="true"] {
+  cursor: grab;
+}
+
+.database-table th[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 .database-table td {
   padding: 4px 12px;
   border-bottom: 1px solid var(--background-modifier-border-focus);
@@ -548,6 +576,291 @@
 
 .calendar-event:hover {
   filter: brightness(1.1);
+}
+
+/* ── Timeline / Gantt View ────────────────── */
+.timeline-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.timeline-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.timeline-nav__controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-nav__btn {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-nav__btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.timeline-nav__zoom {
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.timeline-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.timeline-left-panel {
+  width: 250px;
+  min-width: 250px;
+  border-right: 1px solid var(--background-modifier-border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.timeline-left-panel__header {
+  padding: 6px 12px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--background-modifier-border);
+  height: 32px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-left-row {
+  padding: 4px 12px;
+  height: 40px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.timeline-left-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.timeline-left-row__name {
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-accent);
+}
+
+.timeline-group-header {
+  padding: 4px 8px;
+  height: 32px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.timeline-group-header:hover {
+  background: var(--background-modifier-hover);
+}
+
+.timeline-group-header__arrow {
+  display: inline-flex;
+  transition: transform 0.15s;
+}
+
+.timeline-group-header__arrow--collapsed {
+  transform: rotate(-90deg);
+}
+
+.timeline-group-header__count {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.timeline-grid-scroll {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.timeline-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  height: 32px;
+  box-sizing: border-box;
+}
+
+.timeline-header__cells {
+  display: flex;
+  height: 100%;
+}
+
+.timeline-header-cell {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  color: var(--text-muted);
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+.timeline-today-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e03e3e;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.timeline-rows {
+  position: relative;
+}
+
+.timeline-row {
+  position: relative;
+  height: 40px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.timeline-row .timeline-left-row {
+  display: none; /* left panel is separate; row only shows grid */
+}
+
+.timeline-row__grid {
+  position: relative;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.timeline-group-row {
+  height: 32px;
+  background: var(--background-secondary);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.timeline-bar {
+  position: absolute;
+  top: 6px;
+  height: 28px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  cursor: grab;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: filter 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-bar:active {
+  cursor: grabbing;
+}
+
+.timeline-bar:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.timeline-bar__label {
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-bar--dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  top: 14px;
+  padding: 0;
+  margin-left: -6px;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+}
+
+.timeline-bar__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  transition: opacity 0.15s;
+}
+
+.timeline-bar:hover .timeline-bar__handle {
+  opacity: 1;
+}
+
+.timeline-bar__handle--left {
+  left: 0;
+  border-radius: 5px 0 0 5px;
+}
+
+.timeline-bar__handle--right {
+  right: 0;
+  border-radius: 0 5px 5px 0;
+}
+
+.timeline-drag-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: #1e1e1e;
+  color: #ddd;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-drag-tooltip strong {
+  color: #fff;
 }
 
 /* ── Color Picker ──────────────────────────── */

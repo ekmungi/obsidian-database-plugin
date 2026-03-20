@@ -1,14 +1,15 @@
 # Obsidian Database Plugin
 
-Notion-like database views for Obsidian. Interactive tables, kanban boards, and calendars over your markdown files with inline editing.
+Notion-like database views for Obsidian. Interactive tables, kanban boards, calendars, and timelines over your markdown files with inline editing.
 
 ## What it does
 
-Turn any folder of markdown files into a database. Your YAML frontmatter becomes the data, and the plugin gives you three views to work with it:
+Turn any folder of markdown files into a database. Your YAML frontmatter becomes the data, and the plugin gives you four views to work with it:
 
 - **Table view** -- spreadsheet-like grid with inline editing, sorting, filtering, and search
 - **Kanban view** -- drag-and-drop cards grouped by any select/multi-select property
 - **Calendar view** -- monthly calendar with events placed by date, drag to reschedule
+- **Timeline view** -- horizontal Gantt-style chart showing records as bars across date ranges, with zoom (week/month/quarter/year), today marker, optional grouping, and color-coded bars
 
 All edits write directly to your markdown files' frontmatter. No proprietary database -- your notes stay portable.
 
@@ -26,6 +27,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Search** -- full-text search across all fields via the magnifying glass icon.
 - **Column visibility** -- hide/show columns per view via the eye icon dropdown. `db-view-type` column is auto-hidden when the filter is active.
 - **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. Gear icon opens an inline dropdown (not a modal). Per-column "Wrap text" toggle. "+" button discovers existing frontmatter properties. File column label is editable but type is locked.
+- **Column reorder** -- drag column headers to rearrange columns. Drop indicator shows where the column will land. Order persists in the schema.
 - **Column resize** -- drag the right edge of any column header to resize. Widths persist per view in the schema. Minimum width matches the column title length.
 - **Text overflow** -- by default, long text truncates with ellipsis. Enable "Wrap text" per column to show full content. Applies to text, file names, relations, and multi-select tags.
 - **Relation tags** -- linked notes display as styled pill tags with a subtle gray background. Clickable to navigate to the note.
@@ -35,7 +37,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **New records** -- "+ New" button creates a note with default frontmatter from the schema (including `db-view-type` if configured) and opens it for editing.
 - **File explorer entry** -- a `.dbview` file is created in each database folder. Click it to open the database view.
 - **Live updates** -- file changes, renames, and deletions are reflected immediately in the view.
-- **View management** -- Notion-style tabs for views. Create new table/kanban/calendar views with the "+" button, rename by double-clicking, right-click for context menu (rename, set as default, delete). Sort and filter state persists per view.
+- **View management** -- Notion-style tabs for views. Create new table/kanban/calendar/timeline views with the "+" button, rename by double-clicking, right-click for context menu (rename, set as default, delete). Sort and filter state persists per view.
 - **View persistence** -- database views survive Obsidian restarts. Tab title shows the database name.
 - **Codeblock embedding** -- embed interactive database views inside any markdown note using a ` ```database ` codeblock. Full editing, live updates, and view selection. Great for dashboards and project pages.
 - **Theme-aware** -- inherits all styles from your Obsidian theme via CSS variables. Select tag colors use a Notion-inspired palette.

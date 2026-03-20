@@ -51,6 +51,8 @@ interface TableViewProps {
   readonly onDeleteOption?: (columnId: string, optionName: string) => void;
   /** Folder paths for relation target autocomplete. */
   readonly folderPaths?: readonly string[];
+  /** Called to reorder columns — move fromId before toId in schema. */
+  readonly onReorderColumns?: (fromId: string, toId: string) => void;
 }
 
 /**
@@ -90,6 +92,7 @@ export function TableView({
   onDeleteColumn,
   onDeleteOption: onDeleteOptionProp,
   folderPaths,
+  onReorderColumns,
 }: TableViewProps) {
   /** Get visible columns — filter out hidden columns from the active view config. */
   const visibleColumns = useMemo(() => {
@@ -134,6 +137,7 @@ export function TableView({
           onDeleteColumn={onDeleteColumn}
           onDeleteOption={onDeleteOptionProp}
           folderPaths={folderPaths}
+          onReorderColumns={onReorderColumns}
         />
         <tbody>
           {records.map((record) => (

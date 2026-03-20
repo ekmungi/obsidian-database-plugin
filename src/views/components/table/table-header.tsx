@@ -34,6 +34,8 @@ interface TableHeaderProps {
   readonly onDeleteOption?: (columnId: string, optionName: string) => void;
   /** All vault folder paths for relation target autocomplete. */
   readonly folderPaths?: readonly string[];
+  /** Called to reorder columns — move fromId before toId. */
+  readonly onReorderColumns?: (fromId: string, toId: string) => void;
 }
 
 /** SVG calendar icon for date columns. */
@@ -125,10 +127,16 @@ export function TableHeader({
   showSelectAll, allSelected, onToggleSelectAll,
   columnWidths, onColumnResize, editingColumnId,
   existingColumnIds, onSaveColumn, onDeleteColumn, onDeleteOption, folderPaths,
+  onReorderColumns,
 }: TableHeaderProps) {
   /** Local dropdown state — which column's gear dropdown is open. */
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  /** Column drag-to-reorder state. */
+  const [dragColumnId, setDragColumnId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null);
 
   /** Close dropdown on click outside or Escape. */
   useEffect(() => {
@@ -185,6 +193,66 @@ export function TableHeader({
     document.addEventListener("mouseup", onMouseUp);
   }, [onColumnResize]);
 
+  /** Column drag handlers. */
+  const handleDragStart = useCallback((e: DragEvent, colId: string) => {
+    setDragColumnId(colId);
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", colId);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent, colId: string) => {
+    if (!dragColumnId || dragColumnId === colId) {
+      setDropTargetId(null);
+      setDropSide(null);
+      return;
+    }
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    /* Determine left/right side based on mouse position within the th. */
+    const th = (e.currentTarget as HTMLElement);
+    const rect = th.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    setDropTargetId(colId);
+    setDropSide(e.clientX < midX ? "left" : "right");
+  }, [dragColumnId]);
+
+  const handleDrop = useCallback((e: DragEvent, colId: string) => {
+    e.preventDefault();
+    if (!dragColumnId || !onReorderColumns || dragColumnId === colId) return;
+
+    /* Determine target position based on drop side.
+     * "left" = insert before colId, "right" = insert after colId.
+     * For "after", we reorder to the next column's position (or append to end). */
+    const colIdx = columns.findIndex((c) => c.id === colId);
+    if (colIdx === -1) return;
+
+    if (dropSide === "right") {
+      /* Find next column that isn't the dragged one. */
+      const nextCol = columns[colIdx + 1];
+      if (nextCol && nextCol.id !== dragColumnId) {
+        onReorderColumns(dragColumnId, nextCol.id);
+      } else {
+        /* Drop at end — move before a sentinel that doesn't exist triggers append.
+         * Use the current colId as target; the reorder function puts it after. */
+        onReorderColumns(dragColumnId, colId);
+      }
+    } else {
+      onReorderColumns(dragColumnId, colId);
+    }
+
+    setDragColumnId(null);
+    setDropTargetId(null);
+    setDropSide(null);
+  }, [dragColumnId, dropSide, columns, onReorderColumns]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragColumnId(null);
+    setDropTargetId(null);
+    setDropSide(null);
+  }, []);
+
   return (
     <thead>
       <tr>
@@ -209,12 +277,28 @@ export function TableHeader({
           const savedWidth = columnWidths?.[col.id] ?? DEFAULT_COL_WIDTHS[col.type];
           const width = savedWidth ? Math.max(savedWidth, minWidth) : undefined;
 
+          const isDragging = dragColumnId === col.id;
+          const isDropLeft = dropTargetId === col.id && dropSide === "left";
+          const isDropRight = dropTargetId === col.id && dropSide === "right";
+
           return (
             <th
               key={col.id}
-              style={width ? { width: `${width}px`, minWidth: `${minWidth}px` } : { minWidth: `${minWidth}px` }}
+              style={{
+                ...(width ? { width: `${width}px`, minWidth: `${minWidth}px` } : { minWidth: `${minWidth}px` }),
+                ...(isDragging ? { opacity: 0.4 } : {}),
+                position: "relative",
+              }}
               title={`${col.label} (${col.type}) — click to sort, Shift+click for multi-sort`}
+              draggable={!!onReorderColumns}
+              onDragStart={(e) => handleDragStart(e as unknown as DragEvent, col.id)}
+              onDragOver={(e) => handleDragOver(e as unknown as DragEvent, col.id)}
+              onDrop={(e) => handleDrop(e as unknown as DragEvent, col.id)}
+              onDragEnd={handleDragEnd}
+              onDragLeave={() => { if (dropTargetId === col.id) { setDropTargetId(null); setDropSide(null); } }}
             >
+              {isDropLeft && <div class="column-drop-indicator column-drop-indicator--left" />}
+              {isDropRight && <div class="column-drop-indicator column-drop-indicator--right" />}
               <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
                 <span
                   style={{ flex: 1, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}

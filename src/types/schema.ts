@@ -102,7 +102,7 @@ export interface FilterRule {
 }
 
 /** View types supported by the plugin. */
-export type ViewType = "table" | "kanban" | "calendar";
+export type ViewType = "table" | "kanban" | "calendar" | "timeline";
 
 /** Base configuration shared by all view types. */
 export interface BaseViewConfig {
@@ -140,8 +140,21 @@ export interface CalendarViewConfig extends BaseViewConfig {
   readonly colorBy?: string;
 }
 
+/** Timeline/Gantt-specific view configuration. */
+export interface TimelineViewConfig extends BaseViewConfig {
+  readonly type: "timeline";
+  /** Column ID of the start date field. */
+  readonly startDateField: string;
+  /** Column ID of the end date field (optional — single-date records show as dots). */
+  readonly endDateField: string;
+  /** Optional column ID whose select options determine bar colors. */
+  readonly colorBy?: string;
+  /** Optional column ID to group rows by (collapsible sections). */
+  readonly groupBy?: string;
+}
+
 /** Union of all view configurations. */
-export type ViewConfig = TableViewConfig | KanbanViewConfig | CalendarViewConfig;
+export type ViewConfig = TableViewConfig | KanbanViewConfig | CalendarViewConfig | TimelineViewConfig;
 
 /** The complete database schema stored in .database.json. */
 export interface DatabaseSchema {

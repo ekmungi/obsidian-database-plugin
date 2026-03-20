@@ -14,6 +14,7 @@ import { pickNextColor } from "../../engine/color-cycle";
 import { TableView } from "./table/table-view";
 import { KanbanView } from "./kanban/kanban-view";
 import { CalendarView } from "./calendar/calendar-view";
+import { TimelineView } from "./timeline/timeline-view";
 import { TableToolbar } from "./table/table-toolbar";
 import { ColumnConfigModal } from "./config/column-config-modal";
 
@@ -214,6 +215,16 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
       const dateCol = schema.columns.find((c) => c.type === "date")
         ?? schema.columns.find((c) => c.type !== "file");
       newView = { id, type: "calendar", name, dateField: dateCol?.id ?? "name" };
+    } else if (type === "timeline") {
+      const dateCols = schema.columns.filter((c) => c.type === "date");
+      /* Smart detect: prefer "start" in name for start field, "end"/"due" for end field. */
+      const startCol = dateCols.find((c) => /start/i.test(c.id) || /start/i.test(c.label))
+        ?? dateCols[0]
+        ?? schema.columns.find((c) => c.type !== "file");
+      const endCol = dateCols.find((c) => /end|due|deadline|finish/i.test(c.id) || /end|due|deadline|finish/i.test(c.label))
+        ?? dateCols.find((c) => c !== startCol)
+        ?? startCol;
+      newView = { id, type: "timeline", name, startDateField: startCol?.id ?? "name", endDateField: endCol?.id ?? "name" };
     } else {
       newView = { id, type: "table", name, sort: [{ column: "name", dir: "asc" }] };
     }
@@ -518,6 +529,18 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     onDeleteOption?.(columnId, optionName);
   }, [onDeleteOption]);
 
+  /** Reorder columns — move a column before another in the schema. */
+  const handleReorderColumns = useCallback((fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    const cols = [...schema.columns];
+    const fromIdx = cols.findIndex((c) => c.id === fromId);
+    const toIdx = cols.findIndex((c) => c.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = cols.splice(fromIdx, 1);
+    cols.splice(toIdx, 0, moved);
+    onSchemaChange({ ...schema, columns: cols });
+  }, [schema, onSchemaChange]);
+
   /** Get the column being edited or pre-filled for existing property. */
   const editingColumn = modalState.mode === "edit"
     ? schema.columns.find((c) => c.id === modalState.columnId)
@@ -587,6 +610,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         onDeleteColumn: handleInlineDeleteColumn,
         onDeleteOptionInline: handleInlineDeleteOption,
         folderPaths,
+        onReorderColumns: handleReorderColumns,
       })}
       {showAddMenu && undiscoveredProperties.length > 0 && (
         <>
@@ -694,6 +718,8 @@ interface RenderParams {
   readonly onDeleteOptionInline?: (columnId: string, optionName: string) => void;
   /** Folder paths for relation target autocomplete. */
   readonly folderPaths?: readonly string[];
+  /** Called to reorder columns — move fromId before toId. */
+  readonly onReorderColumns?: (fromId: string, toId: string) => void;
 }
 
 /** Dispatches rendering to the correct view component based on view type. */
@@ -727,6 +753,7 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           onDeleteColumn={params.onDeleteColumn}
           onDeleteOption={params.onDeleteOptionInline}
           folderPaths={params.folderPaths}
+          onReorderColumns={params.onReorderColumns}
         />
       );
     case "kanban":
@@ -747,6 +774,19 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           records={params.records}
           dateField={view.dateField}
           colorBy={view.colorBy}
+          onCellChange={params.onCellChange}
+          onOpenNote={params.onOpenNote}
+        />
+      );
+    case "timeline":
+      return (
+        <TimelineView
+          schema={params.schema}
+          records={params.records}
+          startDateField={view.startDateField}
+          endDateField={view.endDateField}
+          colorBy={view.colorBy}
+          groupBy={view.groupBy}
           onCellChange={params.onCellChange}
           onOpenNote={params.onOpenNote}
         />
