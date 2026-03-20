@@ -34,6 +34,7 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Database settings** -- gear dropdown for database name, template folder (with folder autocomplete), and view type filter.
 - **Property type sync** -- column types sync to Obsidian's `types.json` so the Properties editor shows the correct input widgets.
 - **Schema-level filter** -- set `dbViewType` in settings to show only files whose `db-view-type` frontmatter matches. Enables multiple databases in one folder.
+- **Template picker** -- configure a `templateFolder` in settings, then use the split "+ New" button's dropdown arrow to create records from any `.md` template in that folder. Plain "+ New" click always creates a blank record. No templates configured? The button stays simple with no dropdown.
 - **New records** -- "+ New" button creates a note with default frontmatter from the schema (including `db-view-type` if configured) and opens it for editing.
 - **File explorer entry** -- a `.dbview` file is created in each database folder. Click it to open the database view.
 - **Live updates** -- file changes, renames, and deletions are reflected immediately in the view.

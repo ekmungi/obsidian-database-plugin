@@ -18,6 +18,8 @@ import {
 } from "../engine/relation-resolver";
 import { pickNextColor } from "../engine/color-cycle";
 import { renameOptionInValue, removeOptionFromValue } from "../engine/option-operations";
+import { scanTemplateFolders, scanSingleFolder } from "../data/template-scanner";
+import type { Template, FolderTemplates } from "../data/template-scanner";
 
 const SCHEMA_FILENAME = ".database.json";
 
@@ -47,6 +49,10 @@ export class DatabaseController {
   public records: readonly DatabaseRecord[] = [];
   /** Cached target records for relation columns, keyed by folder path. */
   public targetRecordsCache = new Map<string, readonly DatabaseRecord[]>();
+  /** Enabled templates for the picker dropdown (flat list). */
+  public templates: readonly Template[] = [];
+  /** Per-folder template entries with enabled/disabled status (for settings UI). */
+  public folderTemplates: readonly FolderTemplates[] = [];
 
   /** Track files we just created to prevent duplicate adds from on('create'). */
   private recentlyCreated = new Set<string>();
@@ -82,6 +88,7 @@ export class DatabaseController {
     await this.syncPropertyTypesToObsidian();
     await this.ensureDbviewFile();
     await this.loadAllTargetRecords();
+    await this.discoverTemplates();
   }
 
   /** Clean up timers and reset state. */
@@ -93,9 +100,25 @@ export class DatabaseController {
     this.recentlyCreated.clear();
     this.watchedTargetPaths.clear();
     this.targetRecordsCache.clear();
+    this.templates = [];
+    this.folderTemplates = [];
     this.schema = null;
     this.records = [];
     this.folderPath = null;
+  }
+
+  /** Scan all configured template folders for .md template files. */
+  async discoverTemplates(): Promise<void> {
+    const folders = this.schema?.templateFolders ?? [];
+    if (folders.length > 0) {
+      this.templates = await scanTemplateFolders(this.app, folders);
+      this.folderTemplates = await Promise.all(
+        folders.map((config) => scanSingleFolder(this.app, config))
+      );
+    } else {
+      this.templates = [];
+      this.folderTemplates = [];
+    }
   }
 
   /**
@@ -432,6 +455,7 @@ export class DatabaseController {
     await this.syncPropertyTypesToObsidian();
     await this.ensureBidirectionalReverseColumns();
     await this.loadAllTargetRecords();
+    await this.discoverTemplates();
     this.callbacks.onHeaderUpdate?.();
     this.callbacks.onStateChange();
   };

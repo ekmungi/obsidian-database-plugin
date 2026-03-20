@@ -2,9 +2,11 @@
 
 import { h } from "preact";
 import { useState, useCallback, useEffect, useRef } from "preact/hooks";
-import type { DatabaseSchema, ViewType, ColumnDefinition, FilterRule, FilterOperator, SortRule, SortDirection } from "../../../types/schema";
+import type { DatabaseSchema, ViewType, ColumnDefinition, FilterRule, FilterOperator, SortRule, SortDirection, TemplateFolderConfig } from "../../../types/schema";
 import type { DatabaseRecord, CellValue } from "../../../types/record";
 import { ViewTabs } from "./view-tabs";
+import { TemplatePicker } from "../shared/template-picker";
+import type { Template, FolderTemplates } from "../../../data/template-scanner";
 
 /** Props for the TableToolbar component. */
 interface TableToolbarProps {
@@ -12,12 +14,16 @@ interface TableToolbarProps {
   readonly records: readonly DatabaseRecord[];
   readonly activeViewId: string;
   readonly onViewChange: (viewId: string) => void;
-  readonly onNewRecord: () => void;
+  readonly onNewRecord: (templatePath?: string | null) => void;
   readonly onSearch: (query: string) => void;
+  /** Discovered templates for the "+ New" split button. */
+  readonly templates?: readonly Template[];
+  /** Per-folder template entries with enabled/disabled status (for settings accordion). */
+  readonly folderTemplates?: readonly FolderTemplates[];
   readonly onFilterChange?: (filters: readonly FilterRule[]) => void;
   readonly sort?: readonly SortRule[];
   readonly onSortChange?: (sort: readonly SortRule[]) => void;
-  readonly onSettingsSave?: (updates: { name?: string; templateFolder?: string; dbViewType?: string; recursive?: boolean }) => void;
+  readonly onSettingsSave?: (updates: { name?: string; templateFolders?: TemplateFolderConfig[]; dbViewType?: string; recursive?: boolean }) => void;
   readonly hiddenColumns?: readonly string[];
   readonly onToggleColumnVisibility?: (columnId: string) => void;
   readonly folderPaths?: readonly string[];
@@ -64,6 +70,8 @@ export function TableToolbar({
   onViewChange,
   onNewRecord,
   onSearch,
+  templates,
+  folderTemplates,
   onFilterChange,
   sort,
   onSortChange,
@@ -89,7 +97,11 @@ export function TableToolbar({
   const [showSettingsDropdown, setShowSettingsDropdown] = useState(false);
   const settingsDropdownRef = useRef<HTMLDivElement>(null);
   const [settingsName, setSettingsName] = useState(schema.name);
-  const [settingsTemplate, setSettingsTemplate] = useState(schema.templateFolder ?? "");
+  const [settingsTemplateFolders, setSettingsTemplateFolders] = useState<TemplateFolderConfig[]>(
+    [...(schema.templateFolders ?? [])]
+  );
+  const [templateFolderInput, setTemplateFolderInput] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<ReadonlySet<string>>(new Set());
   const [settingsDbViewType, setSettingsDbViewType] = useState(schema.dbViewType ?? "");
   const [settingsRecursive, setSettingsRecursive] = useState(schema.recursive ?? false);
   const [showFolderSuggestions, setShowFolderSuggestions] = useState(false);
@@ -199,22 +211,20 @@ export function TableToolbar({
   /** Sync settings state when schema changes externally. */
   useEffect(() => {
     setSettingsName(schema.name);
-    setSettingsTemplate(schema.templateFolder ?? "");
+    setSettingsTemplateFolders([...(schema.templateFolders ?? [])]);
     setSettingsDbViewType(schema.dbViewType ?? "");
     setSettingsRecursive(schema.recursive ?? false);
-  }, [schema.name, schema.templateFolder, schema.dbViewType, schema.recursive]);
+  }, [schema.name, schema.templateFolders, schema.dbViewType, schema.recursive]);
 
   /** Save settings and close dropdown. */
   const handleSettingsSave = useCallback(() => {
     if (!onSettingsSave) return;
-    const updates: { name?: string; templateFolder?: string; dbViewType?: string; recursive?: boolean } = {};
+    const updates: { name?: string; templateFolders?: TemplateFolderConfig[]; dbViewType?: string; recursive?: boolean } = {};
     if (settingsName.trim() && settingsName.trim() !== schema.name) {
       updates.name = settingsName.trim();
     }
-    const trimmedFolder = settingsTemplate.trim();
-    if (trimmedFolder !== (schema.templateFolder ?? "")) {
-      updates.templateFolder = trimmedFolder || undefined;
-    }
+    // Always send current templateFolders state
+    updates.templateFolders = settingsTemplateFolders;
     const trimmedViewType = settingsDbViewType.trim();
     if (trimmedViewType !== (schema.dbViewType ?? "")) {
       updates.dbViewType = trimmedViewType || undefined;
@@ -224,7 +234,50 @@ export function TableToolbar({
     }
     onSettingsSave(updates);
     setShowSettingsDropdown(false);
-  }, [settingsName, settingsTemplate, settingsDbViewType, settingsRecursive, schema, onSettingsSave]);
+  }, [settingsName, settingsTemplateFolders, settingsDbViewType, settingsRecursive, schema, onSettingsSave]);
+
+  /** Add a template folder from the input. */
+  const handleAddTemplateFolder = useCallback(() => {
+    const path = templateFolderInput.trim();
+    if (!path) return;
+    if (settingsTemplateFolders.some((f) => f.path === path)) return;
+    setSettingsTemplateFolders([...settingsTemplateFolders, { path }]);
+    setTemplateFolderInput("");
+    setExpandedFolders((prev) => new Set([...prev, path]));
+  }, [templateFolderInput, settingsTemplateFolders]);
+
+  /** Remove a template folder. */
+  const handleRemoveTemplateFolder = useCallback((path: string) => {
+    setSettingsTemplateFolders(settingsTemplateFolders.filter((f) => f.path !== path));
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      next.delete(path);
+      return next;
+    });
+  }, [settingsTemplateFolders]);
+
+  /** Toggle a folder's expanded/collapsed state. */
+  const handleToggleFolderExpanded = useCallback((path: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) { next.delete(path); } else { next.add(path); }
+      return next;
+    });
+  }, []);
+
+  /** Toggle a template's enabled/disabled state within a folder. */
+  const handleToggleTemplate = useCallback((folderPath: string, templateName: string) => {
+    setSettingsTemplateFolders(settingsTemplateFolders.map((f) => {
+      if (f.path !== folderPath) return f;
+      const disabled = new Set(f.disabledTemplates ?? []);
+      if (disabled.has(templateName)) {
+        disabled.delete(templateName);
+      } else {
+        disabled.add(templateName);
+      }
+      return { ...f, disabledTemplates: disabled.size > 0 ? [...disabled] : undefined };
+    }));
+  }, [settingsTemplateFolders]);
 
   /** Clear the search input. */
   const handleClearSearch = useCallback(() => {
@@ -622,7 +675,7 @@ export function TableToolbar({
             onClick={() => setShowColumnDropdown(!showColumnDropdown)}
             title="Toggle column visibility"
             style={{
-              color: (hiddenColumns ?? []).length > 0 ? "var(--interactive-accent)" : undefined,
+              color: (hiddenColumns ?? []).filter((id) => id !== "db-view-type").length > 0 ? "var(--interactive-accent)" : undefined,
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -712,61 +765,158 @@ export function TableToolbar({
                   style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
                 />
               </div>
-              <div style={{ marginBottom: "6px", position: "relative" }}>
-                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>Template Folder</label>
-                <input
-                  class="database-form-input"
-                  type="text"
-                  value={settingsTemplate}
-                  onInput={(e) => {
-                    setSettingsTemplate((e.target as HTMLInputElement).value);
-                    setShowFolderSuggestions(true);
-                  }}
-                  onFocus={() => setShowFolderSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowFolderSuggestions(false), 150)}
-                  placeholder="path/to/templates"
-                  style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
-                />
-                {showFolderSuggestions && folderPaths && (() => {
-                  const query = settingsTemplate.toLowerCase();
-                  const matches = folderPaths.filter((p) => p.toLowerCase().includes(query)).slice(0, 8);
-                  if (matches.length === 0) return null;
+              <div style={{ marginBottom: "6px" }}>
+                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>Template Folders</label>
+                <div style={{ display: "flex", gap: "4px", marginTop: "2px", position: "relative" }}>
+                  <input
+                    class="database-form-input"
+                    type="text"
+                    value={templateFolderInput}
+                    onInput={(e) => {
+                      setTemplateFolderInput((e.target as HTMLInputElement).value);
+                      setShowFolderSuggestions(true);
+                    }}
+                    onFocus={() => setShowFolderSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowFolderSuggestions(false), 150)}
+                    onKeyDown={(e) => { if ((e as KeyboardEvent).key === "Enter") { e.preventDefault(); handleAddTemplateFolder(); } }}
+                    placeholder="path/to/templates"
+                    style={{ flex: 1, padding: "3px 6px", fontSize: "12px" }}
+                  />
+                  <button
+                    onClick={handleAddTemplateFolder}
+                    style={{
+                      padding: "3px 8px",
+                      fontSize: "11px",
+                      background: "var(--interactive-accent)",
+                      color: "var(--text-on-accent)",
+                      border: "none",
+                      borderRadius: "var(--radius-s)",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Add
+                  </button>
+                  {showFolderSuggestions && folderPaths && (() => {
+                    const query = templateFolderInput.toLowerCase();
+                    const existing = new Set(settingsTemplateFolders.map((f) => f.path));
+                    const matches = folderPaths
+                      .filter((p) => p.toLowerCase().includes(query) && !existing.has(p))
+                      .slice(0, 8);
+                    if (matches.length === 0) return null;
+                    return (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          zIndex: 60,
+                          background: "var(--background-primary)",
+                          border: "1px solid var(--background-modifier-border)",
+                          borderRadius: "var(--radius-s)",
+                          boxShadow: "var(--shadow-s)",
+                          maxHeight: "150px",
+                          overflowY: "auto",
+                        }}
+                      >
+                        {matches.map((path) => (
+                          <div
+                            key={path}
+                            onClick={() => {
+                              setTemplateFolderInput(path);
+                              setShowFolderSuggestions(false);
+                            }}
+                            style={{ padding: "3px 6px", fontSize: "12px", cursor: "pointer" }}
+                            class="template-picker-item"
+                          >
+                            {path}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+                {/* Accordion list of added folders */}
+                {settingsTemplateFolders.map((folderConfig) => {
+                  const isExpanded = expandedFolders.has(folderConfig.path);
+                  const folderName = folderConfig.path.split("/").pop() ?? folderConfig.path;
+                  const folderData = folderTemplates?.find((ft) => ft.folderPath === folderConfig.path);
+                  const disabled = new Set(folderConfig.disabledTemplates ?? []);
                   return (
                     <div
+                      key={folderConfig.path}
                       style={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        right: 0,
-                        zIndex: 60,
-                        background: "var(--background-primary)",
-                        border: "1px solid var(--background-modifier-border)",
+                        marginTop: "4px",
                         borderRadius: "var(--radius-s)",
-                        boxShadow: "var(--shadow-s)",
-                        maxHeight: "150px",
-                        overflowY: "auto",
+                        overflow: "hidden",
                       }}
                     >
-                      {matches.map((path) => (
-                        <div
-                          key={path}
-                          onClick={() => {
-                            setSettingsTemplate(path);
-                            setShowFolderSuggestions(false);
-                          }}
-                          style={{
-                            padding: "3px 6px",
-                            fontSize: "12px",
-                            cursor: "pointer",
-                          }}
-                          class="template-picker-item"
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "3px 6px",
+                          background: "none",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          gap: "4px",
+                        }}
+                        onClick={() => handleToggleFolderExpanded(folderConfig.path)}
+                      >
+                        <span style={{ fontSize: "10px", width: "12px", textAlign: "center", flexShrink: 0 }}>
+                          {isExpanded ? "\u25BC" : "\u25B6"}
+                        </span>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={folderConfig.path}>
+                          {folderName}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemoveTemplateFolder(folderConfig.path); }}
+                          style={{ all: "unset", cursor: "pointer", flexShrink: 0, opacity: 0.6, display: "inline-flex", alignItems: "center" }}
+                          title="Remove folder"
                         >
-                          {path}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--text-muted)">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" />
+                          </svg>
+                        </button>
+                      </div>
+                      {isExpanded && (
+                        <div style={{ padding: "2px 4px" }}>
+                          {folderData && folderData.templates.length > 0 ? (
+                            folderData.templates.map((t) => (
+                              <label
+                                key={t.path}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  padding: "2px 4px",
+                                  cursor: "pointer",
+                                  fontSize: "11px",
+                                  borderRadius: "var(--radius-s)",
+                                }}
+                                class="template-picker-item"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={!disabled.has(t.name)}
+                                  onChange={() => handleToggleTemplate(folderConfig.path, t.name)}
+                                />
+                                <span style={{ opacity: disabled.has(t.name) ? 0.5 : 1 }}>{t.name}</span>
+                              </label>
+                            ))
+                          ) : (
+                            <div style={{ padding: "2px 4px", fontSize: "11px", color: "var(--text-muted)" }}>
+                              No .md files found
+                            </div>
+                          )}
                         </div>
-                      ))}
+                      )}
                     </div>
                   );
-                })()}
+                })}
               </div>
               <div style={{ marginBottom: "8px" }}>
                 <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>View Type Filter</label>
@@ -821,21 +971,11 @@ export function TableToolbar({
         </div>
       )}
 
-      {/* New record button — prominent style */}
-      <button
-        onClick={onNewRecord}
-        title="Create new record"
-        style={{
-          background: "var(--interactive-accent)",
-          color: "var(--text-on-accent)",
-          padding: "4px 12px",
-          borderRadius: "var(--radius-s)",
-          fontWeight: "600",
-          flexShrink: 0,
-        }}
-      >
-        + New
-      </button>
+      {/* New record button — split button with template picker when templates exist */}
+      <TemplatePicker
+        templates={templates ?? []}
+        onSelect={onNewRecord}
+      />
     </div>
   );
 }

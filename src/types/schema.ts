@@ -156,11 +156,22 @@ export interface TimelineViewConfig extends BaseViewConfig {
 /** Union of all view configurations. */
 export type ViewConfig = TableViewConfig | KanbanViewConfig | CalendarViewConfig | TimelineViewConfig;
 
+/** Configuration for a single template folder source. */
+export interface TemplateFolderConfig {
+  /** Vault-relative path to the template folder. */
+  readonly path: string;
+  /** Template file basenames that are disabled (unchecked). All enabled by default. */
+  readonly disabledTemplates?: readonly string[];
+}
+
 /** The complete database schema stored in .database.json. */
 export interface DatabaseSchema {
   readonly name: string;
   readonly source: string;
+  /** @deprecated Use templateFolders instead. Kept for backward compatibility on load. */
   readonly templateFolder?: string;
+  /** Configured template folder sources with per-folder enable/disable. */
+  readonly templateFolders?: readonly TemplateFolderConfig[];
   readonly columns: readonly ColumnDefinition[];
   readonly views: readonly ViewConfig[];
   /** When set, only show files whose frontmatter `db-view-type` matches this value. */

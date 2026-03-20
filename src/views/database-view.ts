@@ -141,6 +141,8 @@ export class DatabaseView extends ItemView {
         onDeleteRecords: this.controller.handleDeleteRecords,
         folderPaths: this.controller.getVaultFolderPaths(),
         targetRecordsByFolder: new Map(this.controller.targetRecordsCache),
+        templates: this.controller.templates,
+        folderTemplates: this.controller.folderTemplates,
       }),
       this.renderRoot
     );

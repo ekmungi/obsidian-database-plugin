@@ -105,11 +105,18 @@ export function parseSchema(jsonString: string): DatabaseSchema {
   } catch {
     throw new SchemaValidationError("Invalid JSON string");
   }
-  const schema = raw as DatabaseSchema;
+  let schema = raw as DatabaseSchema;
   validateSchema(schema);
   // Default version to 1 for schemas without a version field
-  const versioned = schema.version ? schema : { ...schema, version: 1 };
-  return versioned;
+  if (!schema.version) {
+    schema = { ...schema, version: 1 };
+  }
+  // Migrate legacy templateFolder to templateFolders array
+  if (schema.templateFolder && !schema.templateFolders) {
+    const { templateFolder, ...rest } = schema;
+    schema = { ...rest, templateFolders: [{ path: templateFolder }] };
+  }
+  return schema;
 }
 
 /**

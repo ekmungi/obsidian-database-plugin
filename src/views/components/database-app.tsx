@@ -4,7 +4,7 @@ import { h } from "preact";
 import { useState, useCallback, useMemo, useEffect } from "preact/hooks";
 import type {
   DatabaseSchema, ViewConfig, CellValue, SortRule, SortDirection,
-  FilterRule, ColumnDefinition, ColumnType, ColorKey, ViewType,
+  FilterRule, ColumnDefinition, ColumnType, ColorKey, ViewType, TemplateFolderConfig,
 } from "../../types";
 import type { DatabaseRecord } from "../../types/record";
 import { filterByDbViewType, filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
@@ -17,6 +17,7 @@ import { CalendarView } from "./calendar/calendar-view";
 import { TimelineView } from "./timeline/timeline-view";
 import { TableToolbar } from "./table/table-toolbar";
 import { ColumnConfigModal } from "./config/column-config-modal";
+import type { Template, FolderTemplates } from "../../data/template-scanner";
 
 /** Props for the root database app component. */
 export interface DatabaseAppProps {
@@ -52,6 +53,10 @@ export interface DatabaseAppProps {
   readonly onDeleteRecords?: (recordIds: readonly string[]) => void;
   /** Optional view ID to show initially (used by codeblock embedding). */
   readonly initialViewId?: string;
+  /** Enabled templates for the picker dropdown (flat list). */
+  readonly templates?: readonly Template[];
+  /** Per-folder template entries with enabled/disabled status (for settings accordion). */
+  readonly folderTemplates?: readonly FolderTemplates[];
 }
 
 /** Cycle sort direction: none -> asc -> desc -> none. */
@@ -291,7 +296,6 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
 
   const handleSearch = useCallback((query: string) => { setSearchQuery(query); }, []);
   const handleFilterChange = useCallback((filters: readonly FilterRule[]) => { setUserFilters(filters); }, []);
-  const handleNewRecord = useCallback(() => { onNewRecord(null); }, [onNewRecord]);
 
   /** Toggle a single record's selection. */
   const handleToggleSelect = useCallback((recordId: string) => {
@@ -333,11 +337,11 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
 
   /** Save settings from the toolbar settings dropdown.
    *  Auto-hides the db-view-type column when dbViewType filter is set. */
-  const handleSettingsSave = useCallback((updates: { name?: string; templateFolder?: string; dbViewType?: string; recursive?: boolean }) => {
+  const handleSettingsSave = useCallback((updates: { name?: string; templateFolders?: TemplateFolderConfig[]; dbViewType?: string; recursive?: boolean }) => {
     let updated: DatabaseSchema = {
       ...schema,
       ...(updates.name !== undefined ? { name: updates.name } : {}),
-      ...(updates.templateFolder !== undefined ? { templateFolder: updates.templateFolder || undefined } : {}),
+      ...(updates.templateFolders !== undefined ? { templateFolders: updates.templateFolders.length > 0 ? updates.templateFolders : undefined, templateFolder: undefined } : {}),
       ...(updates.dbViewType !== undefined ? { dbViewType: updates.dbViewType || undefined } : {}),
       ...(updates.recursive !== undefined ? { recursive: updates.recursive || undefined } : {}),
     };
@@ -568,8 +572,10 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         records={sourceFilteredRecords}
         activeViewId={activeView.id}
         onViewChange={handleViewChange}
-        onNewRecord={handleNewRecord}
+        onNewRecord={onNewRecord}
         onSearch={handleSearch}
+        templates={props.templates}
+        folderTemplates={props.folderTemplates}
         onFilterChange={handleFilterChange}
         sort={sort}
         onSortChange={setSort}

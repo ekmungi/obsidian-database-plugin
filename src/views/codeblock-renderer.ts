@@ -144,6 +144,8 @@ export function registerDatabaseCodeblock(plugin: Plugin): void {
           onDeleteRecords: ctrl.handleDeleteRecords,
           folderPaths: ctrl.getVaultFolderPaths(),
           targetRecordsByFolder: new Map(ctrl.targetRecordsCache),
+          templates: ctrl.templates,
+          folderTemplates: ctrl.folderTemplates,
         }),
         wrapper
       );

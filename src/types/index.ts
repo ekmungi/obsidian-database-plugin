@@ -16,6 +16,7 @@ export type {
   KanbanViewConfig,
   CalendarViewConfig,
   ViewConfig,
+  TemplateFolderConfig,
   DatabaseSchema,
 } from "./schema";
 
