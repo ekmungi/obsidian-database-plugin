@@ -43,6 +43,26 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Codeblock embedding** -- embed interactive database views inside any markdown note using a ` ```database ` codeblock. Full editing, live updates, and view selection. Great for dashboards and project pages.
 - **Theme-aware** -- inherits all styles from your Obsidian theme via CSS variables. Select tag colors use a Notion-inspired palette.
 
+## How it compares to Obsidian's built-in tools
+
+Obsidian has **Properties** (a per-file frontmatter editor) and the experimental **Bases** (early beta). This plugin takes a fundamentally different approach — it treats a folder of markdown files as a full database with multiple interactive views.
+
+| Capability | Obsidian Properties / Bases | This Plugin |
+|------------|---------------------------|-------------|
+| **Views** | Single-file property editor; Bases has a basic table | Table, Kanban, Calendar, Timeline/Gantt |
+| **Inline editing** | One file at a time | Edit any cell across all records in any view |
+| **Relations** | None | Bidirectional wikilink relations with auto-sync |
+| **Rollups** | None | Computed rollup columns across relations |
+| **Drag-and-drop** | None | Kanban cards, calendar events, timeline bars |
+| **Schema** | No schema — raw frontmatter | Typed columns with options, colors, and validation |
+| **Multi-view** | One view per file | Notion-style tabs per database |
+| **Codeblock embedding** | No | Interactive views inside any note |
+| **Templates** | Requires separate plugin | Built-in multi-folder template picker |
+| **Data format** | Frontmatter | Frontmatter (fully compatible — your data stays portable) |
+| **Dependencies** | Core Obsidian | Zero external dependencies |
+
+**In short:** If Obsidian Properties is a spreadsheet cell, this plugin is the full spreadsheet — plus kanban, calendar, and Gantt views on top.
+
 ## Getting started
 
 1. Install the plugin (copy `main.js`, `manifest.json`, `styles.css` to `.obsidian/plugins/obsidian-database-plugin/`)
@@ -142,7 +162,7 @@ The embedded view is fully interactive -- you can edit cells, add records, sort,
 npm install
 npm run dev       # watch mode
 npm run build     # production build
-npm test          # run tests (256 tests)
+npm test          # run tests (300 tests)
 ```
 
 ### Architecture
@@ -165,9 +185,11 @@ The `DatabaseController` (`src/views/database-controller.ts`) is a shared data l
 
 ## Roadmap
 
+- Community plugin registry submission (v1.0.0)
 - Customizable color schemes
-- Gallery and timeline views
 - Formula column support
+- Gallery view
+- CSV import/export
 
 ## License
 
