@@ -214,8 +214,12 @@ export function getHeaderColumns(
  */
 function alignToColumnBoundary(date: Date, zoom: ZoomLevel): Date {
   switch (zoom) {
-    case "week":
-      return date; /* daily — no alignment needed */
+    case "week": {
+      /* Align to Sunday. */
+      const d = new Date(date);
+      d.setDate(d.getDate() - d.getDay());
+      return d;
+    }
     case "month": {
       /* Align to start of month. */
       const d = new Date(date);
@@ -236,6 +240,15 @@ function alignToColumnBoundary(date: Date, zoom: ZoomLevel): Date {
       return d;
     }
   }
+}
+
+/**
+ * Get the ISO week number of the year for a date (Sunday-start convention).
+ */
+function getWeekNumber(date: Date): number {
+  const start = new Date(date.getFullYear(), 0, 1);
+  const diff = date.getTime() - start.getTime() + ((start.getDay()) * 86400000);
+  return Math.ceil(diff / 604800000);
 }
 
 /**
@@ -272,15 +285,17 @@ function weekEndSaturday(date: Date): Date {
 
 /**
  * Format a date label appropriate for the zoom level.
- * - Week: "Mar 15"
- * - Month: "Mar 15 - 21" (Sun-Sat week range)
+ * - Week: "W12 - Mar 15" (week number + Sunday start)
+ * - Month: "Jan (2026)"
  * - Quarter: "FY26 Q1 (Jan-Mar)"
  * - Year: "Jan 2026"
  */
 function formatColumnLabel(date: Date, zoom: ZoomLevel): string {
   switch (zoom) {
-    case "week":
-      return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
+    case "week": {
+      const weekNum = getWeekNumber(date);
+      return `W${weekNum} - ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+    }
     case "month":
       return `${MONTHS[date.getMonth()]} (${date.getFullYear()})`;
     case "quarter": {
@@ -298,7 +313,7 @@ function formatColumnLabel(date: Date, zoom: ZoomLevel): string {
 function advanceByZoom(date: Date, zoom: ZoomLevel): void {
   switch (zoom) {
     case "week":
-      date.setDate(date.getDate() + 1);
+      date.setDate(date.getDate() + 7);
       break;
     case "month":
       date.setMonth(date.getMonth() + 1);
@@ -335,7 +350,7 @@ export function positionToDate(
  */
 export function getColumnWidth(zoom: ZoomLevel): number {
   switch (zoom) {
-    case "week": return 80;
+    case "week": return 140;
     case "month": return 200;
     case "quarter": return 300;
     case "year": return 100;

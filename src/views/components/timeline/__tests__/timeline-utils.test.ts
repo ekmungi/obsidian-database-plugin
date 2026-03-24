@@ -201,12 +201,13 @@ describe("getBarDimensions", () => {
 });
 
 describe("getHeaderColumns", () => {
-  it("returns columns for week zoom (daily)", () => {
+  it("returns columns for week zoom (weekly, Sunday start)", () => {
     const start = new Date(2025, 0, 1);
-    const end = new Date(2025, 0, 8);
+    const end = new Date(2025, 1, 1);
     const cols = getHeaderColumns(start, end, "week");
-    expect(cols.length).toBeGreaterThanOrEqual(7);
-    expect(cols[0].label).toContain("Jan");
+    expect(cols.length).toBeGreaterThanOrEqual(4);
+    expect(cols[0].label).toMatch(/W\d+ - /);
+    expect(cols[0].label).toContain("Dec");
   });
 
   it("returns columns for quarter zoom with FY labels and month ranges", () => {
@@ -222,7 +223,7 @@ describe("getHeaderColumns", () => {
 
 describe("getColumnWidth", () => {
   it("returns expected widths for each zoom level", () => {
-    expect(getColumnWidth("week")).toBe(80);
+    expect(getColumnWidth("week")).toBe(140);
     expect(getColumnWidth("month")).toBe(200);
     expect(getColumnWidth("quarter")).toBe(300);
     expect(getColumnWidth("year")).toBe(100);
