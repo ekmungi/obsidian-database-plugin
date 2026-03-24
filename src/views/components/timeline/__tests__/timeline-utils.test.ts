@@ -223,7 +223,7 @@ describe("getHeaderColumns", () => {
 describe("getColumnWidth", () => {
   it("returns expected widths for each zoom level", () => {
     expect(getColumnWidth("week")).toBe(80);
-    expect(getColumnWidth("month")).toBe(140);
+    expect(getColumnWidth("month")).toBe(200);
     expect(getColumnWidth("quarter")).toBe(300);
     expect(getColumnWidth("year")).toBe(100);
   });

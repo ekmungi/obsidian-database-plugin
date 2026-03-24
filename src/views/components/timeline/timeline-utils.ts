@@ -217,9 +217,9 @@ function alignToColumnBoundary(date: Date, zoom: ZoomLevel): Date {
     case "week":
       return date; /* daily — no alignment needed */
     case "month": {
-      /* Align to Sunday. */
+      /* Align to start of month. */
       const d = new Date(date);
-      d.setDate(d.getDate() - d.getDay());
+      d.setDate(1);
       return d;
     }
     case "quarter": {
@@ -281,15 +281,8 @@ function formatColumnLabel(date: Date, zoom: ZoomLevel): string {
   switch (zoom) {
     case "week":
       return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
-    case "month": {
-      const sun = weekStartSunday(date);
-      const sat = weekEndSaturday(date);
-      const startLabel = `${MONTHS[sun.getMonth()]} ${sun.getDate()}`;
-      const endLabel = sun.getMonth() === sat.getMonth()
-        ? `${sat.getDate()}`
-        : `${MONTHS[sat.getMonth()]} ${sat.getDate()}`;
-      return `${startLabel} - ${endLabel}`;
-    }
+    case "month":
+      return `${MONTHS[date.getMonth()]} (${date.getFullYear()})`;
     case "quarter": {
       const q = getFiscalQuarter(date.getMonth());
       return `${getFiscalYearLabel(date.getFullYear())} Q${q} (${QUARTER_MONTHS[q - 1]})`;
@@ -308,7 +301,7 @@ function advanceByZoom(date: Date, zoom: ZoomLevel): void {
       date.setDate(date.getDate() + 1);
       break;
     case "month":
-      date.setDate(date.getDate() + 7);
+      date.setMonth(date.getMonth() + 1);
       break;
     case "quarter":
       date.setMonth(date.getMonth() + 3);
@@ -343,7 +336,7 @@ export function positionToDate(
 export function getColumnWidth(zoom: ZoomLevel): number {
   switch (zoom) {
     case "week": return 80;
-    case "month": return 140;
+    case "month": return 200;
     case "quarter": return 300;
     case "year": return 100;
   }
