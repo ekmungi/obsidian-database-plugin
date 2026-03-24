@@ -30,16 +30,16 @@ export interface TemplateEntry {
  * @returns True if it has a children array
  */
 function isFolder(f: unknown): f is TFolder {
-  return f !== null && typeof f === "object" && Array.isArray((f as TFolder).children);
+  return f !== null && typeof f === "object" && "children" in f && Array.isArray((f as { children: unknown }).children);
 }
 
 /**
- * Check if an abstract file is a markdown file (duck-type for testability).
+ * Check if an abstract file is a markdown file.
  * @param f - Abstract file from vault
  * @returns True if it has extension === "md"
  */
 function isMdFile(f: unknown): f is TFile {
-  return f !== null && typeof f === "object" && (f as TFile).extension === "md";
+  return f !== null && typeof f === "object" && "extension" in f && (f as { extension: string }).extension === "md";
 }
 
 /**
@@ -50,7 +50,7 @@ function isMdFile(f: unknown): f is TFile {
  * @param config - Folder config with path and optional disabled list
  * @returns FolderTemplates with all entries and their enabled state
  */
-export async function scanSingleFolder(
+export function scanSingleFolder(
   app: App,
   config: TemplateFolderConfig,
 ): Promise<FolderTemplates> {

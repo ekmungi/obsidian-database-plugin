@@ -8,7 +8,7 @@ import { registerDatabaseCodeblock } from "./views/codeblock-renderer";
 const DBVIEW_EXTENSION = "dbview";
 
 export default class DatabasePlugin extends Plugin {
-  async onload(): Promise<void> {
+  onload(): void {
     this.registerView(
       DATABASE_VIEW_TYPE,
       (leaf: WorkspaceLeaf) => new DatabaseView(leaf, this)
@@ -27,14 +27,14 @@ export default class DatabasePlugin extends Plugin {
             item
               .setTitle("Open as database")
               .setIcon("table")
-              .onClick(() => this.openDatabaseView(file.path));
+              .onClick(() => { void this.openDatabaseView(file.path); });
           });
         }
       })
     );
 
     this.addRibbonIcon("table", "Open database view", () => {
-      this.activateDatabaseView();
+      void this.activateDatabaseView();
     });
 
     // Deduplicate: when a .dbview click opens a new tab for a folder that's already open,
@@ -61,7 +61,7 @@ export default class DatabasePlugin extends Plugin {
   }
 
   onunload(): void {
-    this.app.workspace.detachLeavesOfType(DATABASE_VIEW_TYPE);
+    // Intentionally empty — do not detach leaves, as that resets leaf positions
   }
 
   /** Opens a database view for a specific folder path, reusing an existing tab if open. */

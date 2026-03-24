@@ -180,15 +180,13 @@ export function TableHeader({
     const onMouseUp = (upEvent: MouseEvent) => {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      document.body.classList.remove("database-resizing");
 
       const finalWidth = Math.max(minWidth, Math.round(th.getBoundingClientRect().width));
       onColumnResize?.(colId, finalWidth);
     };
 
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    document.body.classList.add("database-resizing");
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   }, [onColumnResize]);

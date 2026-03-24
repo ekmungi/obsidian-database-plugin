@@ -76,7 +76,7 @@ export class DatabaseController {
     try {
       const content = await this.app.vault.adapter.read(schemaPath);
       this.schema = parseSchema(content);
-      console.log("Database Plugin: Schema loaded", schemaPath, this.schema.columns.length, "columns");
+      console.debug("Database Plugin: Schema loaded", schemaPath, this.schema.columns.length, "columns");
     } catch (err) {
       console.warn("Database Plugin: Schema load failed, using default", schemaPath, err);
       this.schema = createDefaultSchema(folderPath.split("/").pop() ?? "Database");
@@ -89,7 +89,7 @@ export class DatabaseController {
     if (discovered !== this.schema) {
       const newCount = discovered.columns.length - this.schema.columns.length;
       this.schema = discovered;
-      console.log("Database Plugin: Auto-discovered", newCount, "new columns");
+      console.debug("Database Plugin: Auto-discovered", newCount, "new columns");
       const path = `${this.folderPath}/${SCHEMA_FILENAME}`;
       await this.app.vault.adapter.write(path, JSON.stringify(this.schema, null, 2));
     }
@@ -348,7 +348,7 @@ export class DatabaseController {
       this.callbacks.onStateChange();
 
       // Open the new note for editing
-      this.app.workspace.getLeaf("tab").openFile(newFile);
+      void this.app.workspace.getLeaf("tab").openFile(newFile);
     } catch (err) {
       console.error("Database Plugin: Failed to create new record", err);
     }
@@ -358,7 +358,7 @@ export class DatabaseController {
   handleOpenNote = (record: DatabaseRecord): void => {
     const file = this.app.vault.getAbstractFileByPath(record.id);
     if (file instanceof TFile) {
-      this.app.workspace.getLeaf("tab").openFile(file);
+      void this.app.workspace.getLeaf("tab").openFile(file);
     }
   };
 
@@ -367,7 +367,7 @@ export class DatabaseController {
     const allFiles = this.app.vault.getMarkdownFiles();
     const file = allFiles.find((f) => f.basename === noteName);
     if (file) {
-      this.app.workspace.getLeaf("tab").openFile(file);
+      void this.app.workspace.getLeaf("tab").openFile(file);
     }
   };
 
@@ -401,7 +401,7 @@ export class DatabaseController {
       const file = this.app.vault.getAbstractFileByPath(recordId);
       if (file instanceof TFile) {
         try {
-          await this.app.vault.delete(file);
+          await this.app.fileManager.trashFile(file);
         } catch (err) {
           console.error(`Database Plugin: Failed to delete "${recordId}"`, err);
         }
@@ -539,7 +539,7 @@ export class DatabaseController {
           }
         }
 
-        console.log(`Database Plugin: Auto-created reverse column "${col.reverseColumnId}" in ${col.target}`);
+        console.debug(`Database Plugin: Auto-created reverse column "${col.reverseColumnId}" in ${col.target}`);
         this.callbacks.onRefreshFolder?.(col.target!);
       } catch {
         // Target schema doesn't exist
@@ -679,7 +679,7 @@ export class DatabaseController {
     }
 
     await this.loadTargetRecords(column.target);
-    console.log(`Database Plugin: Cleaned up reverse column "${column.reverseColumnId}" from ${column.target}`);
+    console.debug(`Database Plugin: Cleaned up reverse column "${column.reverseColumnId}" from ${column.target}`);
     this.callbacks.onRefreshFolder?.(column.target);
   };
 
@@ -821,7 +821,7 @@ export class DatabaseController {
     if (updated) {
       this.schema = schema;
       const schemaPath = `${this.folderPath}/${SCHEMA_FILENAME}`;
-      this.app.vault.adapter.write(schemaPath, JSON.stringify(schema, null, 2));
+      void this.app.vault.adapter.write(schemaPath, JSON.stringify(schema, null, 2));
     }
   }
 
@@ -857,15 +857,15 @@ export class DatabaseController {
     if (changed) {
       this.schema = { ...this.schema, columns: updatedColumns };
       const schemaPath = `${this.folderPath}/${SCHEMA_FILENAME}`;
-      this.app.vault.adapter.write(schemaPath, JSON.stringify(this.schema, null, 2));
+      void this.app.vault.adapter.write(schemaPath, JSON.stringify(this.schema, null, 2));
     }
   }
 
-  /** Sync column types to Obsidian's .obsidian/types.json. */
+  /** Sync column types to Obsidian's types.json in the config directory. */
   private async syncPropertyTypesToObsidian(): Promise<void> {
     if (!this.schema) return;
 
-    const typesPath = ".obsidian/types.json";
+    const typesPath = `${this.app.vault.configDir}/types.json`;
     let typesData: { types: Record<string, string> } = { types: {} };
 
     try {
@@ -895,7 +895,7 @@ export class DatabaseController {
 
     if (changed) {
       await this.app.vault.adapter.write(typesPath, JSON.stringify(typesData, null, 2));
-      console.log("Database Plugin: Synced property types to .obsidian/types.json");
+      console.debug("Database Plugin: Synced property types to types.json");
     }
   }
 
@@ -912,14 +912,14 @@ export class DatabaseController {
       }
     }
 
-    const typesPath = ".obsidian/types.json";
+    const typesPath = `${this.app.vault.configDir}/types.json`;
     try {
       const content = await this.app.vault.adapter.read(typesPath);
       const typesData = JSON.parse(content);
       if (typesData.types && propertyId in typesData.types) {
         delete typesData.types[propertyId];
         await this.app.vault.adapter.write(typesPath, JSON.stringify(typesData, null, 2));
-        console.log(`Database Plugin: Removed unused property type "${propertyId}" from types.json`);
+        console.debug(`Database Plugin: Removed unused property type "${propertyId}" from types.json`);
       }
     } catch {
       // types.json not readable

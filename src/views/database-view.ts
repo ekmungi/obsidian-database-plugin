@@ -47,9 +47,9 @@ export class DatabaseView extends ItemView {
   getDisplayText(): string {
     if (this.controller.schema?.name) return this.controller.schema.name;
     if (this.controller.folderPath) {
-      return this.controller.folderPath.split("/").pop() ?? "Database View";
+      return this.controller.folderPath.split("/").pop() ?? "Database view";
     }
-    return "Database View";
+    return "Database view";
   }
 
   getIcon(): string {
@@ -73,7 +73,7 @@ export class DatabaseView extends ItemView {
     this.controller.registerFileEvents(this.registerEvent.bind(this));
   }
 
-  async onClose(): Promise<void> {
+  onClose(): void {
     if (this.renderRoot) {
       render(null, this.renderRoot);
     }
@@ -106,7 +106,7 @@ export class DatabaseView extends ItemView {
   /** Render the placeholder when no folder is selected. */
   private renderPlaceholder(container: HTMLElement): void {
     const placeholder = container.createDiv({ cls: "database-placeholder" });
-    placeholder.createEl("h3", { text: "Database View" });
+    placeholder.createEl("h3", { text: "Database view" });
     placeholder.createEl("p", {
       text: "Select a folder with a .database.json file to view its database.",
     });

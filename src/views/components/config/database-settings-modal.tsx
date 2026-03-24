@@ -88,7 +88,7 @@ export function DatabaseSettingsModal({
       <div class="database-modal">
         {/* Header */}
         <div class="database-modal-header">
-          <span>Database Settings</span>
+          <span>Database settings</span>
           <button class="database-btn database-btn--ghost" onClick={onClose}>
             &#10005;
           </button>
@@ -134,7 +134,7 @@ export function DatabaseSettingsModal({
 
           {/* Database view type filter */}
           <div class="database-form-group">
-            <label class="database-form-label">Database View Type</label>
+            <label class="database-form-label">Database view type</label>
             <input
               class="database-form-input"
               type="text"

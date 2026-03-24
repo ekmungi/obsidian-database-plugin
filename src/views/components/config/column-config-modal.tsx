@@ -396,7 +396,7 @@ export function ColumnConfigModal({
     <div class="database-modal-overlay" onClick={handleBackdropClick}>
       <div class="database-modal">
         <div class="database-modal-header">
-          <span>{isEditing ? "Edit Column" : "Add Column"}</span>
+          <span>{isEditing ? "Edit column" : "Add column"}</span>
           <button class="database-btn database-btn--ghost" onClick={onClose}>&#10005;</button>
         </div>
         <div class="database-modal-body">{formFields}</div>

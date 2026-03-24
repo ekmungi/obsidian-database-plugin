@@ -256,6 +256,12 @@
   opacity: 1 !important;
 }
 
+/* ── Column Resize (body state during drag) ── */
+body.database-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 /* ── Column Resize Handle ─────────────────── */
 .column-resize-handle {
   position: absolute;

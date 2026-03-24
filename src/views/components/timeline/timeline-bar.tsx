@@ -26,16 +26,18 @@ function createDragTooltip(): HTMLDivElement {
   return el;
 }
 
-/** Update the tooltip position and content. */
+/** Update the tooltip position and content using DOM methods. */
 function updateDragTooltip(el: HTMLDivElement, x: number, y: number, name: string, start: string, end: string): void {
   el.style.left = `${x + 12}px`;
   el.style.top = `${y - 10}px`;
-  el.innerHTML = `<strong>${esc(name)}</strong><br>Start: ${esc(start)}<br>End: ${esc(end)}`;
-}
-
-/** Minimal HTML escape. */
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  el.empty();
+  const strong = document.createElement("strong");
+  strong.textContent = name;
+  el.appendChild(strong);
+  el.appendChild(document.createElement("br"));
+  el.appendText(`Start: ${start}`);
+  el.appendChild(document.createElement("br"));
+  el.appendText(`End: ${end}`);
 }
 
 /** Remove the tooltip from the DOM. */
