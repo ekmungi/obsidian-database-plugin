@@ -20,6 +20,8 @@ export interface TimelineViewProps {
   readonly endDateField: string;
   readonly colorBy?: string;
   readonly groupBy?: string;
+  readonly initialZoom?: string;
+  readonly onZoomChange?: (zoom: string) => void;
   readonly onCellChange: (recordId: string, field: string, value: CellValue) => void;
   readonly onOpenNote: (record: DatabaseRecord) => void;
 }
@@ -37,9 +39,9 @@ const ZOOM_OPTIONS: readonly { value: ZoomLevel; label: string }[] = [
  * Range is data-driven — computed from actual record dates + padding per zoom level.
  */
 export function TimelineView({
-  schema, records, startDateField, endDateField, colorBy, groupBy, onCellChange, onOpenNote,
+  schema, records, startDateField, endDateField, colorBy, groupBy, initialZoom, onZoomChange, onCellChange, onOpenNote,
 }: TimelineViewProps): h.JSX.Element {
-  const [zoom, setZoom] = useState<ZoomLevel>("month");
+  const [zoom, setZoom] = useState<ZoomLevel>((initialZoom as ZoomLevel) || "month");
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
@@ -129,8 +131,10 @@ export function TimelineView({
   }, []);
 
   const handleZoomChange = useCallback((e: Event) => {
-    setZoom((e.target as HTMLSelectElement).value as ZoomLevel);
-  }, []);
+    const newZoom = (e.target as HTMLSelectElement).value as ZoomLevel;
+    setZoom(newZoom);
+    onZoomChange?.(newZoom);
+  }, [onZoomChange]);
 
   /** Toggle a group's collapsed state. */
   const toggleGroup = useCallback((group: string) => {
@@ -261,7 +265,7 @@ export function TimelineView({
       {datedRecords.length === 0 && (
         <div class="database-empty-state">
           <p>No records have date values in the configured columns.</p>
-          <p style={{ fontSize: "var(--font-ui-smaller)" }}>
+          <p style={{ fontSize: "var(--font-ui-medium)" }}>
             Add dates to your "{startDateField}" or "{endDateField}" fields to see them here.
           </p>
         </div>

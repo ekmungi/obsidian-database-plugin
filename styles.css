@@ -12,6 +12,31 @@
   background: var(--background-primary);
 }
 
+.database-view-title {
+  margin: 12px 12px 4px;
+  padding: 0;
+  font-size: var(--h2-size, 1.4em);
+  font-weight: 600;
+  color: var(--text-normal);
+  flex-shrink: 0;
+  cursor: text;
+  align-self: flex-start;
+}
+
+.database-view-title--editing {
+  margin: 0;
+  font-size: var(--h2-size, 1.4em);
+  font-weight: 600;
+  color: var(--text-normal);
+  border: 1px solid var(--interactive-accent);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  font-family: inherit;
+  outline: none;
+  padding: 0 4px;
+  min-width: 60px;
+}
+
 .database-placeholder {
   display: flex;
   flex-direction: column;
@@ -43,7 +68,7 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
 }
 
 .database-toolbar button:hover {
@@ -70,7 +95,7 @@
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   white-space: nowrap;
   user-select: none;
   transition: color 0.1s, border-color 0.1s;
@@ -117,7 +142,7 @@
   border-radius: var(--radius-s);
   background: var(--background-primary);
   color: var(--text-normal);
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   outline: none;
 }
 
@@ -148,7 +173,7 @@
   padding: 6px 8px;
   cursor: pointer;
   border-radius: var(--radius-s);
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   color: var(--text-normal);
 }
 
@@ -171,7 +196,7 @@
   padding: 6px 10px;
   cursor: pointer;
   border-radius: var(--radius-s);
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   color: var(--text-normal);
 }
 
@@ -211,7 +236,7 @@
   padding: 6px 12px;
   text-align: left;
   font-weight: 500;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   color: var(--text-muted);
   background: var(--background-secondary);
   border-bottom: 1px solid var(--background-modifier-border);
@@ -360,9 +385,11 @@
   align-items: center;
   padding: 2px 8px;
   border-radius: var(--radius-s);
-  font-size: var(--font-ui-smaller);
+  border: 1px solid transparent;
+  font-size: var(--font-ui-medium);
   font-weight: 500;
   line-height: 1.4;
+  margin: 1px 4px 1px 0;
 }
 
 /* Select option colors — saturated pastel backgrounds, dark semantic text */
@@ -433,12 +460,12 @@
   justify-content: space-between;
   padding: 8px 12px;
   font-weight: 600;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   color: var(--text-normal);
 }
 
 .kanban-column-count {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   color: var(--text-muted);
   font-weight: 400;
 }
@@ -478,7 +505,7 @@
 }
 
 .kanban-card-field {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   color: var(--text-muted);
 }
 
@@ -491,7 +518,7 @@
   padding: 1px 6px;
   border-radius: var(--radius-s);
   background: var(--background-modifier-hover);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   margin-right: 4px;
 }
 
@@ -534,7 +561,7 @@
 .calendar-day-header {
   padding: 4px;
   text-align: center;
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   font-weight: 500;
   color: var(--text-muted);
   background: var(--background-secondary);
@@ -557,7 +584,7 @@
 }
 
 .calendar-day-number {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   font-weight: 500;
   color: var(--text-muted);
   margin-bottom: 2px;
@@ -567,7 +594,7 @@
   padding: 2px 4px;
   margin-bottom: 2px;
   border-radius: var(--radius-s);
-  font-size: 11px;
+  font-size: var(--font-ui-medium);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -608,7 +635,7 @@
   padding: 4px 8px;
   cursor: pointer;
   color: var(--text-normal);
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -624,7 +651,7 @@
   border-radius: var(--radius-s);
   background: var(--background-primary);
   color: var(--text-normal);
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
 }
 
 .timeline-content {
@@ -643,7 +670,7 @@
 
 .timeline-left-panel__header {
   padding: 6px 12px;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   font-weight: 600;
   color: var(--text-muted);
   border-bottom: 1px solid var(--background-modifier-border);
@@ -668,7 +695,7 @@
 }
 
 .timeline-left-row__name {
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -683,7 +710,7 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   font-weight: 600;
   color: var(--text-normal);
   background: var(--background-secondary);
@@ -704,7 +731,7 @@
 }
 
 .timeline-group-header__count {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   color: var(--text-muted);
   font-weight: 400;
 }
@@ -735,7 +762,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   font-weight: 500;
   color: var(--text-muted);
   border-right: 1px solid var(--background-modifier-border);
@@ -803,7 +830,7 @@
 }
 
 .timeline-bar__label {
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -852,7 +879,7 @@
   color: #ddd;
   padding: 6px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-ui-medium);
   line-height: 1.5;
   pointer-events: none;
   white-space: nowrap;
@@ -904,6 +931,7 @@
   color: var(--text-accent);
   cursor: pointer;
   text-decoration: none;
+  font-weight: 500;
 }
 
 .database-link:hover {
@@ -922,7 +950,7 @@ tr.database-row--selected {
   border: 1px solid rgba(220, 80, 80, 0.25);
   border-radius: var(--radius-s);
   padding: 4px 10px;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   flex-shrink: 0;
@@ -936,7 +964,7 @@ tr.database-row--selected {
 .database-edit-icon {
   opacity: 0;
   cursor: pointer;
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   padding: 0 2px;
   flex-shrink: 0;
   transition: opacity 0.15s;
@@ -1001,7 +1029,7 @@ tr:hover .database-edit-icon {
 .database-form-label {
   display: block;
   margin-bottom: 4px;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
   font-weight: 500;
   color: var(--text-muted);
 }
@@ -1029,7 +1057,7 @@ tr:hover .database-edit-icon {
   border: none;
   border-radius: var(--radius-s);
   cursor: pointer;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
 }
 
 .database-btn--primary {
@@ -1090,14 +1118,14 @@ tr:hover .database-edit-icon {
 }
 
 .database-dropdown-body .database-form-label {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
   margin-bottom: 2px;
 }
 
 .database-dropdown-body .database-form-input,
 .database-dropdown-body .database-form-select {
   padding: 4px 8px;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
 }
 
 .database-dropdown-footer {
@@ -1109,7 +1137,7 @@ tr:hover .database-edit-icon {
 
 .database-dropdown-footer .database-btn {
   padding: 4px 12px;
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-medium);
 }
 
 .database-dropdown-footer .database-btn--primary {
@@ -1142,7 +1170,7 @@ tr:hover .database-edit-icon {
   padding: 6px 8px;
   border-radius: var(--radius-s);
   cursor: pointer;
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
 }
 
 .template-picker-item:hover {
@@ -1191,5 +1219,5 @@ tr:hover .database-edit-icon {
 .database-codeblock-error {
   padding: 12px 16px;
   color: var(--text-error);
-  font-size: var(--font-ui-small);
+  font-size: var(--font-ui-medium);
 }

@@ -208,22 +208,37 @@ export function TableToolbar({
     };
   }, [showSettingsDropdown]);
 
+  /** Ref for auto-save to avoid stale closures. */
+  const onSettingsSaveRef = useRef(onSettingsSave);
+  onSettingsSaveRef.current = onSettingsSave;
+  const settingsInitialMount = useRef(true);
+  /** Flag to skip auto-save when syncing state from an external schema change. */
+  const isSyncingSettings = useRef(false);
+
   /** Sync settings state when schema changes externally. */
   useEffect(() => {
+    isSyncingSettings.current = true;
     setSettingsName(schema.name);
     setSettingsTemplateFolders([...(schema.templateFolders ?? [])]);
     setSettingsDbViewType(schema.dbViewType ?? "");
     setSettingsRecursive(schema.recursive ?? false);
   }, [schema.name, schema.templateFolders, schema.dbViewType, schema.recursive]);
 
-  /** Save settings and close dropdown. */
-  const handleSettingsSave = useCallback(() => {
-    if (!onSettingsSave) return;
+  /** Auto-save settings on every user-initiated state change. */
+  useEffect(() => {
+    if (!onSettingsSaveRef.current) return;
+    if (settingsInitialMount.current) {
+      settingsInitialMount.current = false;
+      return;
+    }
+    if (isSyncingSettings.current) {
+      isSyncingSettings.current = false;
+      return;
+    }
     const updates: { name?: string; templateFolders?: TemplateFolderConfig[]; dbViewType?: string; recursive?: boolean } = {};
     if (settingsName.trim() && settingsName.trim() !== schema.name) {
       updates.name = settingsName.trim();
     }
-    // Always send current templateFolders state
     updates.templateFolders = settingsTemplateFolders;
     const trimmedViewType = settingsDbViewType.trim();
     if (trimmedViewType !== (schema.dbViewType ?? "")) {
@@ -232,9 +247,8 @@ export function TableToolbar({
     if (settingsRecursive !== (schema.recursive ?? false)) {
       updates.recursive = settingsRecursive;
     }
-    onSettingsSave(updates);
-    setShowSettingsDropdown(false);
-  }, [settingsName, settingsTemplateFolders, settingsDbViewType, settingsRecursive, schema, onSettingsSave]);
+    onSettingsSaveRef.current(updates);
+  }, [settingsName, settingsTemplateFolders, settingsDbViewType, settingsRecursive, schema]);
 
   /** Add a template folder from the input. */
   const handleAddTemplateFolder = useCallback(() => {
@@ -413,7 +427,7 @@ export function TableToolbar({
             borderRadius: "var(--radius-s)",
             background: "var(--background-primary)",
             color: "var(--text-normal)",
-            fontSize: "var(--font-ui-small)",
+            fontSize: "var(--font-ui-medium)",
             width: "140px",
           }}
         />
@@ -467,7 +481,7 @@ export function TableToolbar({
               }}
             >
               {(sort ?? []).length === 0 && (
-                <div style={{ padding: "4px 8px", fontSize: "12px", color: "var(--text-muted)" }}>
+                <div style={{ padding: "4px 8px", fontSize: "var(--font-ui-medium)", color: "var(--text-muted)" }}>
                   No sort rules. Click below to add one.
                 </div>
               )}
@@ -476,12 +490,12 @@ export function TableToolbar({
                 const availableSortCols = sortableColumns.filter((c) => !usedByOthers.has(c.id) || c.id === rule.column);
                 return (
                 <div key={idx} style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)", width: "16px", textAlign: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: "var(--font-ui-medium)", color: "var(--text-muted)", width: "16px", textAlign: "center", flexShrink: 0 }}>
                     {idx === 0 ? "" : "then"}
                   </span>
                   <select
                     class="database-form-select"
-                    style={{ flex: 1, padding: "3px 4px", fontSize: "12px" }}
+                    style={{ flex: 1, padding: "3px 4px", fontSize: "var(--font-ui-medium)" }}
                     value={rule.column}
                     onChange={(e) => {
                       const updated = (sort ?? []).map((s, i) =>
@@ -496,7 +510,7 @@ export function TableToolbar({
                   </select>
                   <select
                     class="database-form-select"
-                    style={{ width: "90px", padding: "3px 4px", fontSize: "12px" }}
+                    style={{ width: "90px", padding: "3px 4px", fontSize: "var(--font-ui-medium)" }}
                     value={rule.dir}
                     onChange={(e) => {
                       const updated = (sort ?? []).map((s, i) =>
@@ -538,7 +552,7 @@ export function TableToolbar({
                   background: "transparent",
                   color: "var(--text-muted)",
                   cursor: "pointer",
-                  fontSize: "12px",
+                  fontSize: "var(--font-ui-medium)",
                 }}
               >
                 + Add sort
@@ -590,7 +604,7 @@ export function TableToolbar({
                 <div key={idx} style={{ display: "flex", gap: "4px", marginBottom: "4px", alignItems: "center" }}>
                   <select
                     class="database-form-select"
-                    style={{ width: "100px", padding: "3px 4px", fontSize: "12px" }}
+                    style={{ width: "100px", padding: "3px 4px", fontSize: "var(--font-ui-medium)" }}
                     value={filter.column}
                     onChange={(e) => handleUpdateFilter(idx, { column: (e.target as HTMLSelectElement).value })}
                   >
@@ -600,7 +614,7 @@ export function TableToolbar({
                   </select>
                   <select
                     class="database-form-select"
-                    style={{ width: "110px", padding: "3px 4px", fontSize: "12px" }}
+                    style={{ width: "110px", padding: "3px 4px", fontSize: "var(--font-ui-medium)" }}
                     value={filter.operator}
                     onChange={(e) => handleUpdateFilter(idx, { operator: (e.target as HTMLSelectElement).value as FilterOperator })}
                   >
@@ -614,7 +628,7 @@ export function TableToolbar({
                     return showDropdown ? (
                       <select
                         class="database-form-select"
-                        style={{ flex: 1, padding: "3px 4px", fontSize: "12px" }}
+                        style={{ flex: 1, padding: "3px 4px", fontSize: "var(--font-ui-medium)" }}
                         value={String(filter.value ?? "")}
                         onChange={(e) => handleUpdateFilter(idx, { value: (e.target as HTMLSelectElement).value })}
                       >
@@ -626,7 +640,7 @@ export function TableToolbar({
                     ) : (
                       <input
                         class="database-form-input"
-                        style={{ flex: 1, padding: "3px 4px", fontSize: "12px" }}
+                        style={{ flex: 1, padding: "3px 4px", fontSize: "var(--font-ui-medium)" }}
                         type={col?.type === "number" ? "number" : "text"}
                         value={String(filter.value ?? "")}
                         placeholder="value"
@@ -659,7 +673,7 @@ export function TableToolbar({
                 background: "transparent",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                fontSize: "12px",
+                fontSize: "var(--font-ui-medium)",
               }}
             >
               + Add filter
@@ -710,7 +724,7 @@ export function TableToolbar({
                       padding: "4px 8px",
                       cursor: "pointer",
                       borderRadius: "var(--radius-s)",
-                      fontSize: "var(--font-ui-small)",
+                      fontSize: "var(--font-ui-medium)",
                     }}
                     class="template-picker-item"
                   >
@@ -756,17 +770,17 @@ export function TableToolbar({
               }}
             >
               <div style={{ marginBottom: "6px" }}>
-                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>Database Name</label>
+                <label style={{ fontSize: "var(--font-ui-medium)", color: "var(--text-muted)", fontWeight: 600 }}>Database Name</label>
                 <input
                   class="database-form-input"
                   type="text"
                   value={settingsName}
                   onInput={(e) => setSettingsName((e.target as HTMLInputElement).value)}
-                  style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
+                  style={{ width: "100%", padding: "3px 6px", fontSize: "var(--font-ui-medium)", marginTop: "2px" }}
                 />
               </div>
               <div style={{ marginBottom: "6px" }}>
-                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>Template Folders</label>
+                <label style={{ fontSize: "var(--font-ui-medium)", color: "var(--text-muted)", fontWeight: 600 }}>Template Folders</label>
                 <div style={{ display: "flex", gap: "4px", marginTop: "2px", position: "relative" }}>
                   <input
                     class="database-form-input"
@@ -780,13 +794,13 @@ export function TableToolbar({
                     onBlur={() => setTimeout(() => setShowFolderSuggestions(false), 150)}
                     onKeyDown={(e) => { if ((e as KeyboardEvent).key === "Enter") { e.preventDefault(); handleAddTemplateFolder(); } }}
                     placeholder="path/to/templates"
-                    style={{ flex: 1, padding: "3px 6px", fontSize: "12px" }}
+                    style={{ flex: 1, padding: "3px 6px", fontSize: "var(--font-ui-medium)" }}
                   />
                   <button
                     onClick={handleAddTemplateFolder}
                     style={{
                       padding: "3px 8px",
-                      fontSize: "11px",
+                      fontSize: "var(--font-ui-medium)",
                       background: "var(--interactive-accent)",
                       color: "var(--text-on-accent)",
                       border: "none",
@@ -828,7 +842,7 @@ export function TableToolbar({
                               setTemplateFolderInput(path);
                               setShowFolderSuggestions(false);
                             }}
-                            style={{ padding: "3px 6px", fontSize: "12px", cursor: "pointer" }}
+                            style={{ padding: "3px 6px", fontSize: "var(--font-ui-medium)", cursor: "pointer" }}
                             class="template-picker-item"
                           >
                             {path}
@@ -860,12 +874,12 @@ export function TableToolbar({
                           padding: "3px 6px",
                           background: "none",
                           cursor: "pointer",
-                          fontSize: "12px",
+                          fontSize: "var(--font-ui-medium)",
                           gap: "4px",
                         }}
                         onClick={() => handleToggleFolderExpanded(folderConfig.path)}
                       >
-                        <span style={{ fontSize: "10px", width: "12px", textAlign: "center", flexShrink: 0 }}>
+                        <span style={{ fontSize: "var(--font-ui-medium)", width: "12px", textAlign: "center", flexShrink: 0 }}>
                           {isExpanded ? "\u25BC" : "\u25B6"}
                         </span>
                         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={folderConfig.path}>
@@ -894,7 +908,7 @@ export function TableToolbar({
                                   gap: "6px",
                                   padding: "2px 4px",
                                   cursor: "pointer",
-                                  fontSize: "11px",
+                                  fontSize: "var(--font-ui-medium)",
                                   borderRadius: "var(--radius-s)",
                                 }}
                                 class="template-picker-item"
@@ -908,7 +922,7 @@ export function TableToolbar({
                               </label>
                             ))
                           ) : (
-                            <div style={{ padding: "2px 4px", fontSize: "11px", color: "var(--text-muted)" }}>
+                            <div style={{ padding: "2px 4px", fontSize: "var(--font-ui-medium)", color: "var(--text-muted)" }}>
                               No .md files found
                             </div>
                           )}
@@ -919,16 +933,16 @@ export function TableToolbar({
                 })}
               </div>
               <div style={{ marginBottom: "8px" }}>
-                <label style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: 600 }}>View Type Filter</label>
+                <label style={{ fontSize: "var(--font-ui-medium)", color: "var(--text-muted)", fontWeight: 600 }}>View Type Filter</label>
                 <input
                   class="database-form-input"
                   type="text"
                   value={settingsDbViewType}
                   onInput={(e) => setSettingsDbViewType((e.target as HTMLInputElement).value)}
                   placeholder="e.g. projects, tasks"
-                  style={{ width: "100%", padding: "3px 6px", fontSize: "12px", marginTop: "2px" }}
+                  style={{ width: "100%", padding: "3px 6px", fontSize: "var(--font-ui-medium)", marginTop: "2px" }}
                 />
-                <div style={{ fontSize: "10px", color: "var(--text-faint)", marginTop: "2px" }}>
+                <div style={{ fontSize: "var(--font-ui-medium)", color: "var(--text-faint)", marginTop: "2px" }}>
                   Only show files with matching db-view-type.
                 </div>
               </div>
@@ -940,7 +954,7 @@ export function TableToolbar({
                   padding: "4px 0",
                   marginBottom: "8px",
                   cursor: "pointer",
-                  fontSize: "12px",
+                  fontSize: "var(--font-ui-medium)",
                 }}
               >
                 <input
@@ -950,22 +964,6 @@ export function TableToolbar({
                 />
                 <span>Include subfolders</span>
               </label>
-              <button
-                onClick={handleSettingsSave}
-                style={{
-                  width: "100%",
-                  padding: "4px 8px",
-                  background: "var(--interactive-accent)",
-                  color: "var(--text-on-accent)",
-                  border: "none",
-                  borderRadius: "var(--radius-s)",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                }}
-              >
-                Save
-              </button>
             </div>
           )}
         </div>

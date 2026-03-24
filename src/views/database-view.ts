@@ -17,6 +17,11 @@ export class DatabaseView extends ItemView {
   private readonly controller: DatabaseController;
   private renderRoot: Element | null = null;
 
+  /** Get the folder path this view is displaying. */
+  getFolderPath(): string | undefined {
+    return this.controller.folderPath;
+  }
+
   /** Reload this view if it matches the given folder path. Called by other views for cross-view refresh. */
   public async reloadIfFolder(folderPath: string): Promise<void> {
     if (this.controller.folderPath === folderPath) {
@@ -63,6 +68,7 @@ export class DatabaseView extends ItemView {
     }
 
     await this.controller.loadDatabase(this.controller.folderPath);
+    this.leaf.updateHeader();
     this.renderApp();
     this.controller.registerFileEvents(this.registerEvent.bind(this));
   }
@@ -93,6 +99,8 @@ export class DatabaseView extends ItemView {
     }
     await this.onOpen();
     await super.setState(state, result);
+    // Update header after a tick so Obsidian doesn't overwrite with the old display text
+    requestAnimationFrame(() => this.leaf.updateHeader());
   }
 
   /** Render the placeholder when no folder is selected. */

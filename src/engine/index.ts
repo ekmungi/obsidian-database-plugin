@@ -10,6 +10,8 @@ export {
   addView,
   removeView,
   createDefaultSchema,
+  guessColumnType,
+  discoverColumns,
   SchemaValidationError,
 } from "./schema-manager";
 

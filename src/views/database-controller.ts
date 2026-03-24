@@ -8,7 +8,7 @@ import type { DatabaseSchema, CellValue, ColumnDefinition } from "../types";
 import type { DatabaseRecord } from "../types/record";
 import { updateFrontmatter, removeFrontmatterField } from "../data/frontmatter-io";
 import { indexFile } from "../data/file-indexer";
-import { parseSchema, createDefaultSchema } from "../engine/schema-manager";
+import { parseSchema, createDefaultSchema, discoverColumns } from "../engine/schema-manager";
 import { filterByDbViewType } from "../engine/query-engine";
 import {
   parseWikilinks,
@@ -83,6 +83,17 @@ export class DatabaseController {
     }
 
     await this.indexRecords();
+
+    /* Auto-discover frontmatter properties not yet in schema and add as columns. */
+    const discovered = discoverColumns(this.schema, this.records);
+    if (discovered !== this.schema) {
+      const newCount = discovered.columns.length - this.schema.columns.length;
+      this.schema = discovered;
+      console.log("Database Plugin: Auto-discovered", newCount, "new columns");
+      const path = `${this.folderPath}/${SCHEMA_FILENAME}`;
+      await this.app.vault.adapter.write(path, JSON.stringify(this.schema, null, 2));
+    }
+
     this.ensureDbViewTypeColumn();
     this.syncSchemaOptionsFromRecords();
     await this.syncPropertyTypesToObsidian();
@@ -444,11 +455,26 @@ export class DatabaseController {
     if (!this.folderPath) return;
 
     const recursiveChanged = this.schema?.recursive !== schema.recursive;
+    const oldName = this.schema?.name;
     this.schema = schema;
     const schemaPath = `${this.folderPath}/${SCHEMA_FILENAME}`;
     const content = JSON.stringify(schema, null, 2);
 
     await this.app.vault.adapter.write(schemaPath, content);
+
+    /* Rename the .dbview file when the database name changes. */
+    if (oldName && schema.name && oldName !== schema.name) {
+      const oldPath = `${this.folderPath}/${oldName}.dbview`;
+      const newPath = `${this.folderPath}/${schema.name}.dbview`;
+      const oldFile = this.app.vault.getAbstractFileByPath(oldPath);
+      if (oldFile) {
+        try {
+          await this.app.vault.rename(oldFile, newPath);
+        } catch {
+          /* Target may already exist or folder may be read-only */
+        }
+      }
+    }
     if (recursiveChanged) {
       await this.indexRecords();
     }

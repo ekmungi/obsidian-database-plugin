@@ -159,7 +159,7 @@ export function MultiSelectCell({
               </span>
               <span
                 style={{
-                  fontSize: "var(--font-ui-small)",
+                  fontSize: "var(--font-ui-medium)",
                   color: "var(--text-normal)",
                   opacity: 0.7,
                   padding: "0 4px",
@@ -209,7 +209,7 @@ export function MultiSelectCell({
                     padding: "4px 8px",
                     cursor: "pointer",
                     borderRadius: "var(--radius-s)",
-                    fontSize: "var(--font-ui-small)",
+                    fontSize: "var(--font-ui-medium)",
                     color: "var(--text-accent)",
                   }}
                   onClick={() => setShowAddInput(true)}
@@ -225,7 +225,7 @@ export function MultiSelectCell({
                     value={newOptionValue}
                     onInput={(e) => setNewOptionValue((e.target as HTMLInputElement).value)}
                     placeholder="Option name"
-                    style={{ flex: 1, padding: "2px 6px", fontSize: "var(--font-ui-small)" }}
+                    style={{ flex: 1, padding: "2px 6px", fontSize: "var(--font-ui-medium)" }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newOptionValue.trim()) {
                         onAddOption(newOptionValue.trim(), "gray");
@@ -241,7 +241,7 @@ export function MultiSelectCell({
                   />
                   <button
                     class="database-btn database-btn--primary"
-                    style={{ padding: "2px 8px", fontSize: "var(--font-ui-small)" }}
+                    style={{ padding: "2px 8px", fontSize: "var(--font-ui-medium)" }}
                     onClick={() => {
                       if (!newOptionValue.trim()) return;
                       onAddOption(newOptionValue.trim(), "gray");

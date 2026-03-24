@@ -1,7 +1,7 @@
 {
   "id": "database-views",
   "name": "Database Views",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "minAppVersion": "1.4.0",
   "description": "Notion-like database views — interactive tables, kanban boards, calendars, and timelines over your markdown files with inline editing and bidirectional relations.",
   "author": "Anant Vemuri",

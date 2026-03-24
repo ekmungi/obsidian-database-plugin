@@ -26,20 +26,22 @@ All edits write directly to your markdown files' frontmatter. No proprietary dat
 - **Filter** -- filter by any column with operators (is, is not, contains, is empty, etc.). Filter values come from your actual data.
 - **Search** -- full-text search across all fields via the magnifying glass icon.
 - **Column visibility** -- hide/show columns per view via the eye icon dropdown. `db-view-type` column is auto-hidden when the filter is active.
-- **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. Gear icon opens an inline dropdown (not a modal). Per-column "Wrap text" toggle. "+" button discovers existing frontmatter properties. File column label is editable but type is locked.
+- **Column configuration** -- add, edit, reorder, and delete columns via the gear icon on column headers. Gear icon opens an inline dropdown (not a modal) with auto-save -- changes apply immediately, no Save button needed. Per-column "Wrap text" toggle. "+" button discovers existing frontmatter properties. File column label is editable but type is locked.
 - **Column reorder** -- drag column headers to rearrange columns. Drop indicator shows where the column will land. Order persists in the schema.
-- **Column resize** -- drag the right edge of any column header to resize. Widths persist per view in the schema. Minimum width matches the column title length.
+- **Column resize** -- drag the right edge of any column header to resize. Widths persist per view in the schema.
 - **Text overflow** -- by default, long text truncates with ellipsis. Enable "Wrap text" per column to show full content. Applies to text, file names, relations, and multi-select tags.
 - **Relation tags** -- linked notes display as styled pill tags with a subtle gray background. Clickable to navigate to the note.
-- **Database settings** -- gear dropdown for database name, template folder (with folder autocomplete), and view type filter.
+- **Database settings** -- gear dropdown for database name, template folder (with folder autocomplete), and view type filter. All settings auto-save on change.
 - **Property type sync** -- column types sync to Obsidian's `types.json` so the Properties editor shows the correct input widgets.
 - **Schema-level filter** -- set `dbViewType` in settings to show only files whose `db-view-type` frontmatter matches. Enables multiple databases in one folder.
 - **Template picker** -- configure a `templateFolder` in settings, then use the split "+ New" button's dropdown arrow to create records from any `.md` template in that folder. Plain "+ New" click always creates a blank record. No templates configured? The button stays simple with no dropdown.
 - **New records** -- "+ New" button creates a note with default frontmatter from the schema (including `db-view-type` if configured) and opens it for editing.
-- **File explorer entry** -- a `.dbview` file is created in each database folder. Click it to open the database view.
+- **Auto-discovery** -- when a database loads, frontmatter properties not yet in the schema are automatically discovered and added as columns with guessed types.
+- **Editable database title** -- H2 heading above the view showing the database name. Click to rename -- also renames the `.dbview` file.
+- **File explorer entry** -- a `.dbview` file is created in each database folder. Click it to open the database view. Clicking again reveals the existing tab instead of opening a duplicate.
 - **Live updates** -- file changes, renames, and deletions are reflected immediately in the view.
 - **View management** -- Notion-style tabs for views. Create new table/kanban/calendar/timeline views with the "+" button, rename by double-clicking, right-click for context menu (rename, set as default, delete). Sort and filter state persists per view.
-- **View persistence** -- database views survive Obsidian restarts. Tab title shows the database name.
+- **View persistence** -- database views survive Obsidian restarts. Tab title shows the database name. View-specific settings (e.g. timeline zoom level) persist across sessions.
 - **Codeblock embedding** -- embed interactive database views inside any markdown note using a ` ```database ` codeblock. Full editing, live updates, and view selection. Great for dashboards and project pages.
 - **Theme-aware** -- inherits all styles from your Obsidian theme via CSS variables. Select tag colors use a Notion-inspired palette.
 

@@ -144,7 +144,7 @@ export function RelationPicker({
           value={query}
           onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           placeholder="Search..."
-          style={{ width: "100%", padding: "4px 8px", fontSize: "var(--font-ui-small)" }}
+          style={{ width: "100%", padding: "4px 8px", fontSize: "var(--font-ui-medium)" }}
         />
       </div>
 
@@ -168,7 +168,7 @@ export function RelationPicker({
           </span>
           <span
             style={{
-              fontSize: "var(--font-ui-small)",
+              fontSize: "var(--font-ui-medium)",
               color: "var(--text-normal)",
               opacity: 0.7,
               padding: "0 4px",
@@ -218,7 +218,7 @@ export function RelationPicker({
               padding: "4px 8px",
               cursor: "pointer",
               borderRadius: "var(--radius-s)",
-              fontSize: "var(--font-ui-small)",
+              fontSize: "var(--font-ui-medium)",
               color: "var(--text-accent)",
             }}
             onClick={handleCreate}
@@ -233,7 +233,7 @@ export function RelationPicker({
         <div style={{
           padding: "8px",
           color: "var(--text-muted)",
-          fontSize: "var(--font-ui-small)",
+          fontSize: "var(--font-ui-medium)",
           textAlign: "center",
         }}>
           No records found

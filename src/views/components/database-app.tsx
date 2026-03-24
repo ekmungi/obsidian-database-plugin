@@ -1,14 +1,14 @@
 /** Root Preact component for the database view — orchestrates data, views, and editing. */
 
 import { h } from "preact";
-import { useState, useCallback, useMemo, useEffect } from "preact/hooks";
+import { useState, useCallback, useMemo, useEffect, useRef } from "preact/hooks";
 import type {
   DatabaseSchema, ViewConfig, CellValue, SortRule, SortDirection,
   FilterRule, ColumnDefinition, ColumnType, ColorKey, ViewType, TemplateFolderConfig,
 } from "../../types";
 import type { DatabaseRecord } from "../../types/record";
 import { filterByDbViewType, filterRecords, sortRecords, searchRecords } from "../../engine/query-engine";
-import { addColumn, removeColumn, updateColumn } from "../../engine/schema-manager";
+import { addColumn, removeColumn, updateColumn, guessColumnType } from "../../engine/schema-manager";
 import { isSameGroup } from "../../engine/type-groups";
 import { pickNextColor } from "../../engine/color-cycle";
 import { TableView } from "./table/table-view";
@@ -83,21 +83,62 @@ type ModalState =
   | { mode: "edit"; columnId: string };
 
 /** Guess a ColumnType from sample values found in frontmatter. */
-function guessColumnType(values: readonly CellValue[]): ColumnType {
-  const nonNull = values.filter((v) => v !== null && v !== undefined && v !== "");
-  if (nonNull.length === 0) return "text";
-  if (nonNull.every((v) => typeof v === "boolean")) return "checkbox";
-  if (nonNull.every((v) => typeof v === "number")) return "number";
-  if (nonNull.every((v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v))) return "date";
-  if (nonNull.every((v) => Array.isArray(v))) return "multi-select";
-  // Check if it looks like a select (few unique string values)
-  if (nonNull.every((v) => typeof v === "string")) {
-    const unique = new Set(nonNull as readonly string[]);
-    if (unique.size <= 10 && nonNull.length >= 3) return "select";
-  }
-  return "text";
-}
 
+/** Inline-editable H2 title — click to edit, blur/Enter to save. Dynamically sized. */
+function EditableTitle({ name, onRename }: { readonly name: string; readonly onRename: (n: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => { setValue(name); }, [name]);
+  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
+
+  /** Resize input to match text content. */
+  useEffect(() => {
+    if (editing && inputRef.current && measureRef.current) {
+      measureRef.current.textContent = value || " ";
+      inputRef.current.style.width = `${measureRef.current.offsetWidth + 16}px`;
+    }
+  }, [editing, value]);
+
+  const commit = useCallback(() => {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== name) onRename(trimmed);
+    else setValue(name);
+  }, [value, name, onRename]);
+
+  if (editing) {
+    return (
+      <div style={{ position: "relative", display: "inline-block", margin: "12px 12px 4px" }}>
+        <span
+          ref={measureRef}
+          class="database-view-title"
+          style={{ visibility: "hidden", position: "absolute", whiteSpace: "pre", margin: 0, padding: "0 4px" }}
+        />
+        <input
+          ref={inputRef}
+          class="database-view-title database-view-title--editing"
+          type="text"
+          value={value}
+          onInput={(e) => setValue((e.target as HTMLInputElement).value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") { setEditing(false); setValue(name); }
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <h2 class="database-view-title" onClick={() => setEditing(true)} title="Click to rename">
+      {name}
+    </h2>
+  );
+}
 
 /** Root component that switches between table, kanban, and calendar views. */
 export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
@@ -557,6 +598,17 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
     [schema.columns]
   );
 
+  /** Persist a view-specific setting (e.g. timeline zoom) into the active view config. */
+  const handleViewSettingChange = useCallback((key: string, value: unknown) => {
+    if (!activeView) return;
+    const updatedView = { ...activeView, [key]: value };
+    const updatedSchema = {
+      ...schema,
+      views: schema.views.map((v) => v.id === activeView.id ? updatedView : v),
+    };
+    onSchemaChange(updatedSchema);
+  }, [activeView, schema, onSchemaChange]);
+
   if (!activeView) {
     return (
       <div class="database-empty-state">
@@ -567,6 +619,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
 
   return (
     <div class="database-view-container">
+      <EditableTitle name={schema.name} onRename={(newName) => onSchemaChange({ ...schema, name: newName })} />
       <TableToolbar
         schema={schema}
         records={sourceFilteredRecords}
@@ -617,6 +670,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
         onDeleteOptionInline: handleInlineDeleteOption,
         folderPaths,
         onReorderColumns: handleReorderColumns,
+        onViewSettingChange: handleViewSettingChange,
       })}
       {showAddMenu && undiscoveredProperties.length > 0 && (
         <>
@@ -636,7 +690,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
               minWidth: "220px",
             }}
           >
-            <div style={{ padding: "4px 8px", fontSize: "var(--font-ui-smaller)", color: "var(--text-muted)", fontWeight: 600 }}>
+            <div style={{ padding: "4px 8px", fontSize: "var(--font-ui-medium)", color: "var(--text-muted)", fontWeight: 600 }}>
               Existing properties
             </div>
             {undiscoveredProperties.map((prop) => (
@@ -645,12 +699,12 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
                 onClick={() => handleAddExistingProperty(prop.id, prop.guessedType)}
                 style={{
                   padding: "6px 8px", cursor: "pointer", borderRadius: "var(--radius-s)",
-                  fontSize: "var(--font-ui-small)", display: "flex", justifyContent: "space-between",
+                  fontSize: "var(--font-ui-medium)", display: "flex", justifyContent: "space-between",
                 }}
                 class="template-picker-item"
               >
                 <span>{prop.id}</span>
-                <span style={{ color: "var(--text-muted)", fontSize: "var(--font-ui-smaller)" }}>{prop.guessedType}</span>
+                <span style={{ color: "var(--text-muted)", fontSize: "var(--font-ui-medium)" }}>{prop.guessedType}</span>
               </div>
             ))}
             <div style={{ borderTop: "1px solid var(--background-modifier-border)", marginTop: "4px", paddingTop: "4px" }}>
@@ -658,7 +712,7 @@ export function DatabaseApp(props: DatabaseAppProps): h.JSX.Element {
                 onClick={handleAddNewProperty}
                 style={{
                   padding: "6px 8px", cursor: "pointer", borderRadius: "var(--radius-s)",
-                  fontSize: "var(--font-ui-small)", color: "var(--text-accent)",
+                  fontSize: "var(--font-ui-medium)", color: "var(--text-accent)",
                 }}
                 class="template-picker-item"
               >
@@ -726,6 +780,8 @@ interface RenderParams {
   readonly folderPaths?: readonly string[];
   /** Called to reorder columns — move fromId before toId. */
   readonly onReorderColumns?: (fromId: string, toId: string) => void;
+  /** Called when a view-specific setting changes (e.g. timeline zoom). */
+  readonly onViewSettingChange?: (key: string, value: unknown) => void;
 }
 
 /** Dispatches rendering to the correct view component based on view type. */
@@ -793,6 +849,8 @@ function renderActiveView(view: ViewConfig, params: RenderParams): h.JSX.Element
           endDateField={view.endDateField}
           colorBy={view.colorBy}
           groupBy={view.groupBy}
+          initialZoom={view.zoom}
+          onZoomChange={(z) => params.onViewSettingChange?.("zoom", z)}
           onCellChange={params.onCellChange}
           onOpenNote={params.onOpenNote}
         />

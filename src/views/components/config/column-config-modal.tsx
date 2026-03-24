@@ -2,7 +2,7 @@
  *  Supports type-specific configuration: select options, relation targets, rollups. */
 
 import { h } from "preact";
-import { useState, useCallback } from "preact/hooks";
+import { useState, useCallback, useEffect, useRef } from "preact/hooks";
 import type {
   ColumnDefinition,
   ColumnType,
@@ -103,6 +103,13 @@ export function ColumnConfigModal({
   const [colorPickerIdx, setColorPickerIdx] = useState<number | null>(null);
   const [wrapText, setWrapText] = useState(column?.wrapText ?? false);
   const [error, setError] = useState("");
+
+  /** Refs for auto-save — avoids stale closures and infinite loops. */
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const renamesRef = useRef(renames);
+  renamesRef.current = renames;
+  const isInitialMount = useRef(true);
 
   /** Update label and auto-generate ID unless manually edited. */
   const handleLabelChange = useCallback(
@@ -207,14 +214,15 @@ export function ColumnConfigModal({
 
   /* ── Validation and save ──────────────────── */
 
-  /** Build the ColumnDefinition from current form state. */
-  const buildColumnDef = useCallback((): ColumnDefinition | null => {
+  /** Build the ColumnDefinition from current form state.
+   *  @param silent - When true, skip setting error state (used by auto-save). */
+  const buildColumnDef = useCallback((silent = false): ColumnDefinition | null => {
     if (!label.trim()) {
-      setError("Label is required.");
+      if (!silent) setError("Label is required.");
       return null;
     }
     if (!id.trim()) {
-      setError("ID is required.");
+      if (!silent) setError("ID is required.");
       return null;
     }
     /* Check ID uniqueness (skip current column's own ID when editing). */
@@ -222,7 +230,7 @@ export function ColumnConfigModal({
       ? existingIds.filter((eid) => eid !== column!.id)
       : existingIds;
     if (otherIds.includes(id)) {
-      setError("A column with this ID already exists.");
+      if (!silent) setError("A column with this ID already exists.");
       return null;
     }
 
@@ -231,7 +239,7 @@ export function ColumnConfigModal({
       const optionValues = options.filter((o) => o.value.trim()).map((o) => o.value.trim());
       const uniqueValues = new Set(optionValues);
       if (uniqueValues.size < optionValues.length) {
-        setError("Option names must be unique.");
+        if (!silent) setError("Option names must be unique.");
         return null;
       }
     }
@@ -255,13 +263,26 @@ export function ColumnConfigModal({
         : withRelation;
     const withFormula =
       type === "formula" ? { ...withRollup, formula } : withRollup;
-    const withWrap = wrapText ? { ...withFormula, wrapText: true } : withFormula;
+    const withWrap = { ...withFormula, wrapText };
 
     return withWrap;
   }, [
     label, id, type, options, target, bidirectional, reverseColumnId,
     relationColumn, targetColumn, rollupFunction, formula, wrapText, existingIds, isEditing, column,
   ]);
+
+  /** Auto-save when editing — fires on any form state change after initial mount. */
+  useEffect(() => {
+    if (!isEditing) return;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const colDef = buildColumnDef(true);
+    if (!colDef) return;
+    const r = renamesRef.current;
+    onSaveRef.current(colDef, r.size > 0 ? r : undefined);
+  }, [isEditing, buildColumnDef]);
 
   /** Validate inputs and call onSave with the assembled ColumnDefinition. */
   const handleSave = useCallback(() => {
@@ -308,13 +329,13 @@ export function ColumnConfigModal({
   /** Shared form fields rendered in both modal and dropdown modes. */
   const formFields = (
     <>
-      {error && (<div style={{ color: "var(--text-error)", marginBottom: "8px", fontSize: "var(--font-ui-small)" }}>{error}</div>)}
-      {showTypeChangeConfirm && (<div style={{ background: "var(--background-modifier-error)", padding: "8px 12px", borderRadius: "var(--radius-s)", marginBottom: "8px", fontSize: "var(--font-ui-small)" }}>Changing type will clear values in all pages. Click Save again to confirm.</div>)}
+      {error && (<div style={{ color: "var(--text-error)", marginBottom: "8px", fontSize: "var(--font-ui-medium)" }}>{error}</div>)}
+      {showTypeChangeConfirm && (<div style={{ background: "var(--background-modifier-error)", padding: "8px 12px", borderRadius: "var(--radius-s)", marginBottom: "8px", fontSize: "var(--font-ui-medium)" }}>Changing type will clear values in all pages. Click Save again to confirm.</div>)}
       <div class="database-form-group"><label class="database-form-label">Label</label><input class="database-form-input" type="text" value={label} onInput={handleLabelChange} placeholder="Column name" autoFocus /></div>
       {!isFileColumn && (<div class="database-form-group"><label class="database-form-label">ID</label><input class="database-form-input" type="text" value={id} onInput={handleIdChange} placeholder="column-id" /></div>)}
       {!isFileColumn && (<div class="database-form-group"><label class="database-form-label">Type</label><select class="database-form-select" value={type} onChange={handleTypeChange}>{COLUMN_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}</select></div>)}
       <div style={{ borderTop: "1px solid var(--background-modifier-border)", margin: "4px 0 8px" }} />
-      <div class="database-form-group"><label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "var(--font-ui-small)" }}><input type="checkbox" checked={wrapText} onChange={() => setWrapText(!wrapText)} /><span>Wrap text</span></label></div>
+      <div class="database-form-group"><label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "var(--font-ui-medium)" }}><input type="checkbox" checked={wrapText} onChange={() => setWrapText(!wrapText)} /><span>Wrap text</span></label></div>
       {(showOptions || showRelation || showRollup || showFormula) && (<div style={{ borderTop: "1px solid var(--background-modifier-border)", margin: "4px 0 8px" }} />)}
       {showOptions && (
         <div class="database-form-group">
@@ -333,7 +354,7 @@ export function ColumnConfigModal({
               </div>
             ))}
           </div>
-          {confirmDeleteOption && (<div style={{ color: "var(--text-on-accent)", fontSize: "var(--font-ui-smaller)", marginTop: "4px", padding: "4px 8px", background: "var(--interactive-accent)", borderRadius: "var(--radius-s)" }}>Click X again to delete "{confirmDeleteOption}" from all pages.</div>)}
+          {confirmDeleteOption && (<div style={{ color: "var(--text-on-accent)", fontSize: "var(--font-ui-medium)", marginTop: "4px", padding: "4px 8px", background: "var(--interactive-accent)", borderRadius: "var(--radius-s)" }}>Click X again to delete "{confirmDeleteOption}" from all pages.</div>)}
           <button class="database-btn database-btn--ghost" onClick={addOption} style={{ marginTop: "4px" }}>+ Add option</button>
         </div>
       )}
@@ -354,14 +375,18 @@ export function ColumnConfigModal({
     return (
       <>
         <div class="database-dropdown-body">{formFields}</div>
-        <div class="database-dropdown-footer">
-          {isEditing && onDelete && !isFileColumn && (
-            <button class="database-btn database-btn--danger" onClick={handleDelete}>
-              {confirmDelete ? "Confirm?" : "Delete"}
-            </button>
-          )}
-          <button class="database-btn database-btn--primary" onClick={handleSave} style={{ flex: 1 }}>Save</button>
-        </div>
+        {((!isEditing) || (isEditing && onDelete && !isFileColumn)) && (
+          <div class="database-dropdown-footer">
+            {isEditing && onDelete && !isFileColumn && (
+              <button class="database-btn database-btn--danger" onClick={handleDelete}>
+                {confirmDelete ? "Confirm?" : "Delete"}
+              </button>
+            )}
+            {!isEditing && (
+              <button class="database-btn database-btn--primary" onClick={handleSave} style={{ flex: 1 }}>Add</button>
+            )}
+          </div>
+        )}
       </>
     );
   }
@@ -381,8 +406,10 @@ export function ColumnConfigModal({
               {confirmDelete ? "Delete property and all data?" : "Delete"}
             </button>
           )}
-          <button class="database-btn database-btn--ghost" onClick={onClose}>Cancel</button>
-          <button class="database-btn database-btn--primary" onClick={handleSave}>Save</button>
+          <button class="database-btn database-btn--ghost" onClick={onClose}>{isEditing ? "Done" : "Cancel"}</button>
+          {!isEditing && (
+            <button class="database-btn database-btn--primary" onClick={handleSave}>Add</button>
+          )}
         </div>
       </div>
     </div>

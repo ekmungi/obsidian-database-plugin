@@ -50,7 +50,7 @@ export function RelationConfigFields({
             alignItems: "center",
             gap: "8px",
             cursor: "pointer",
-            fontSize: "var(--font-ui-small)",
+            fontSize: "var(--font-ui-medium)",
           }}
         >
           <input

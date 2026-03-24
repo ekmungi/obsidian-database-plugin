@@ -132,7 +132,7 @@ export function FolderAutocomplete({
                 padding: "4px 8px",
                 cursor: "pointer",
                 borderRadius: "var(--radius-s)",
-                fontSize: "var(--font-ui-small)",
+                fontSize: "var(--font-ui-medium)",
                 background: path === value ? "var(--background-modifier-hover)" : undefined,
               }}
               onMouseDown={(e) => {

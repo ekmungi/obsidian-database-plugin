@@ -178,7 +178,7 @@ export function TemplatePicker({ templates, onSelect }: TemplatePickerProps) {
               value={search}
               onInput={handleSearchChange}
               autoFocus
-              style={{ width: "100%", padding: "4px 6px", fontSize: "12px", marginBottom: "4px" }}
+              style={{ width: "100%", padding: "4px 6px", fontSize: "var(--font-ui-medium)", marginBottom: "4px" }}
             />
           )}
           <div
@@ -188,7 +188,7 @@ export function TemplatePicker({ templates, onSelect }: TemplatePickerProps) {
               padding: "4px 8px",
               cursor: "pointer",
               borderRadius: "var(--radius-s)",
-              fontSize: "var(--font-ui-small)",
+              fontSize: "var(--font-ui-medium)",
               color: "var(--text-muted)",
             }}
           >
@@ -203,7 +203,7 @@ export function TemplatePicker({ templates, onSelect }: TemplatePickerProps) {
                 padding: "4px 8px",
                 cursor: "pointer",
                 borderRadius: "var(--radius-s)",
-                fontSize: "var(--font-ui-small)",
+                fontSize: "var(--font-ui-medium)",
               }}
             >
               {t.name}
@@ -212,7 +212,7 @@ export function TemplatePicker({ templates, onSelect }: TemplatePickerProps) {
           {filtered.length === 0 && search && (
             <div
               class="template-picker-item"
-              style={{ padding: "4px 8px", color: "var(--text-muted)", fontSize: "var(--font-ui-small)" }}
+              style={{ padding: "4px 8px", color: "var(--text-muted)", fontSize: "var(--font-ui-medium)" }}
             >
               No matches
             </div>

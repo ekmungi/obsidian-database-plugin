@@ -151,6 +151,8 @@ export interface TimelineViewConfig extends BaseViewConfig {
   readonly colorBy?: string;
   /** Optional column ID to group rows by (collapsible sections). */
   readonly groupBy?: string;
+  /** Persisted zoom level (week, month, quarter, year). */
+  readonly zoom?: string;
 }
 
 /** Union of all view configurations. */

@@ -2,7 +2,7 @@
  *  Reuses the shared modal CSS classes from column-config-modal. */
 
 import { h } from "preact";
-import { useState, useCallback, useEffect } from "preact/hooks";
+import { useState, useCallback, useEffect, useRef } from "preact/hooks";
 import type { DatabaseSchema } from "../../../types/schema";
 
 interface DatabaseSettingsModalProps {
@@ -32,10 +32,18 @@ export function DatabaseSettingsModal({
   );
   const [dbViewType, setDbViewType] = useState(schema.dbViewType ?? "");
 
-  /** Persist changes and close. */
-  const handleSave = useCallback(() => {
-    const updates: { name?: string; templateFolder?: string; dbViewType?: string } = {};
+  /** Ref for auto-save to avoid stale closures. */
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const isInitialMount = useRef(true);
 
+  /** Auto-save on every state change after initial mount. */
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    const updates: { name?: string; templateFolder?: string; dbViewType?: string } = {};
     if (name.trim() && name.trim() !== schema.name) {
       updates.name = name.trim();
     }
@@ -47,9 +55,8 @@ export function DatabaseSettingsModal({
     if (trimmedViewType !== (schema.dbViewType ?? "")) {
       updates.dbViewType = trimmedViewType || undefined;
     }
-
-    onSave(updates);
-  }, [name, templateFolder, dbViewType, schema, onSave]);
+    onSaveRef.current(updates);
+  }, [name, templateFolder, dbViewType, schema]);
 
   /** Close on backdrop click. */
   const handleBackdropClick = useCallback(
@@ -116,7 +123,7 @@ export function DatabaseSettingsModal({
             />
             <div
               style={{
-                fontSize: "var(--font-ui-smaller)",
+                fontSize: "var(--font-ui-medium)",
                 color: "var(--text-muted)",
                 marginTop: "4px",
               }}
@@ -139,7 +146,7 @@ export function DatabaseSettingsModal({
             />
             <div
               style={{
-                fontSize: "var(--font-ui-smaller)",
+                fontSize: "var(--font-ui-medium)",
                 color: "var(--text-muted)",
                 marginTop: "4px",
               }}
@@ -153,13 +160,7 @@ export function DatabaseSettingsModal({
         {/* Footer */}
         <div class="database-modal-footer">
           <button class="database-btn database-btn--ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            class="database-btn database-btn--primary"
-            onClick={handleSave}
-          >
-            Save
+            Done
           </button>
         </div>
       </div>

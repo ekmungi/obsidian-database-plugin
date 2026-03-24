@@ -6,9 +6,11 @@
 import type {
   DatabaseSchema,
   ColumnDefinition,
+  ColumnType,
   ViewConfig,
   TableViewConfig,
 } from "../types";
+import type { CellValue, DatabaseRecord } from "../types/record";
 
 /** Error thrown when schema validation fails. */
 export class SchemaValidationError extends Error {
@@ -286,5 +288,65 @@ export function createDefaultSchema(name: string): DatabaseSchema {
     source: ".",
     columns: [fileColumn, textColumn],
     views: [tableView],
+  };
+}
+
+/**
+ * Guess the column type from a sample of cell values.
+ * @param values - Sample values from records for a given property.
+ * @returns The best-guess ColumnType.
+ */
+export function guessColumnType(values: readonly CellValue[]): ColumnType {
+  const nonNull = values.filter((v) => v !== null && v !== undefined && v !== "");
+  if (nonNull.length === 0) return "text";
+  if (nonNull.every((v) => typeof v === "boolean")) return "checkbox";
+  if (nonNull.every((v) => typeof v === "number")) return "number";
+  if (nonNull.every((v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v))) return "date";
+  if (nonNull.every((v) => Array.isArray(v))) return "multi-select";
+  if (nonNull.every((v) => typeof v === "string")) {
+    const unique = new Set(nonNull as readonly string[]);
+    if (unique.size <= 10 && nonNull.length >= 3) return "select";
+  }
+  return "text";
+}
+
+/**
+ * Auto-discover frontmatter properties not yet in the schema and add them as columns.
+ * Returns a new schema with discovered columns appended, or the original if none found.
+ *
+ * @param schema - The current database schema.
+ * @param records - All indexed database records.
+ * @returns A new schema with discovered columns appended.
+ */
+export function discoverColumns(
+  schema: DatabaseSchema,
+  records: readonly DatabaseRecord[],
+): DatabaseSchema {
+  const schemaIds = new Set(schema.columns.map((c) => c.id));
+  /** Built-in record properties that should not become columns. */
+  const BUILTIN_PROPS = new Set(["name", "id", "file"]);
+  const propMap = new Map<string, CellValue[]>();
+
+  for (const record of records) {
+    for (const [key, val] of Object.entries(record.values)) {
+      if (schemaIds.has(key) || BUILTIN_PROPS.has(key)) continue;
+      if (!propMap.has(key)) propMap.set(key, []);
+      propMap.get(key)!.push(val);
+    }
+  }
+
+  if (propMap.size === 0) return schema;
+
+  const newColumns: readonly ColumnDefinition[] = Array.from(propMap.entries()).map(
+    ([id, values]) => ({
+      id,
+      type: guessColumnType(values),
+      label: id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    }),
+  );
+
+  return {
+    ...schema,
+    columns: [...schema.columns, ...newColumns],
   };
 }

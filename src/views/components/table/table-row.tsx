@@ -114,7 +114,6 @@ export function TableRow({
               {editingName ? (
                 <input
                   ref={nameInputRef}
-                  class="database-form-input"
                   type="text"
                   value={nameValue}
                   onInput={(e) => setNameValue((e.target as HTMLInputElement).value)}
@@ -124,7 +123,19 @@ export function TableRow({
                     if (e.key === "Enter") handleNameCommit();
                     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setEditingName(false); setNameValue(record.name); }
                   }}
-                  style={{ width: "100%", padding: "2px 4px" }}
+                  style={{
+                    width: "100%",
+                    padding: "1px 2px",
+                    border: "1px solid var(--interactive-accent)",
+                    borderRadius: "var(--radius-s)",
+                    background: "var(--background-primary)",
+                    color: "var(--text-normal)",
+                    fontSize: "inherit",
+                    fontFamily: "inherit",
+                    fontWeight: 500,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
                 />
               ) : (
                 <span

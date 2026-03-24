@@ -36,14 +36,42 @@ export default class DatabasePlugin extends Plugin {
     this.addRibbonIcon("table", "Open database view", () => {
       this.activateDatabaseView();
     });
+
+    // Deduplicate: when a .dbview click opens a new tab for a folder that's already open,
+    // close the duplicate and reveal the existing one instead.
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => {
+        const leaves = this.app.workspace.getLeavesOfType(DATABASE_VIEW_TYPE);
+        if (leaves.length <= 1) return;
+
+        const seen = new Map<string, WorkspaceLeaf>();
+        for (const leaf of leaves) {
+          const fp = (leaf.view as DatabaseView).getFolderPath?.();
+          if (!fp) continue;
+          if (seen.has(fp)) {
+            // Duplicate — close this one and reveal the original
+            leaf.detach();
+            this.app.workspace.revealLeaf(seen.get(fp)!);
+            return;
+          }
+          seen.set(fp, leaf);
+        }
+      })
+    );
   }
 
   onunload(): void {
     this.app.workspace.detachLeavesOfType(DATABASE_VIEW_TYPE);
   }
 
-  /** Opens a database view for a specific folder path. */
+  /** Opens a database view for a specific folder path, reusing an existing tab if open. */
   async openDatabaseView(folderPath: string): Promise<void> {
+    const existing = this.app.workspace.getLeavesOfType(DATABASE_VIEW_TYPE)
+      .find((l) => (l.view as DatabaseView).getFolderPath?.() === folderPath);
+    if (existing) {
+      this.app.workspace.revealLeaf(existing);
+      return;
+    }
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({
       type: DATABASE_VIEW_TYPE,

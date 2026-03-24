@@ -332,7 +332,7 @@ export function TableHeader({
                         <ColumnConfigModal
                           column={col}
                           existingIds={existingColumnIds ?? []}
-                          onSave={(updatedCol, renames) => { onSaveColumn(updatedCol, renames); setOpenDropdownId(null); }}
+                          onSave={(updatedCol, renames) => { onSaveColumn(updatedCol, renames); }}
                           onDelete={col.type !== "file" && onDeleteColumn ? () => { onDeleteColumn(col.id); setOpenDropdownId(null); } : undefined}
                           onDeleteOption={onDeleteOption ? (optName) => onDeleteOption(col.id, optName) : undefined}
                           onClose={() => setOpenDropdownId(null)}

@@ -57,7 +57,7 @@ export function CalendarNav(props: CalendarNavProps) {
           class="clickable-icon"
           aria-label="Today"
           onClick={onToday}
-          style={{ fontSize: "var(--font-ui-smaller)" }}
+          style={{ fontSize: "var(--font-ui-medium)" }}
         >
           Today
         </button>
