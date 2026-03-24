@@ -134,10 +134,19 @@ export function getDataDrivenRange(
       end.setMonth(end.getMonth() + 4);      /* 1 quarter after */
       end.setDate(0);
       break;
-    case "year":
-      start.setMonth(start.getMonth() - 3);  /* 3 months before */
-      end.setMonth(end.getMonth() + 3);      /* 3 months after */
+    case "year": {
+      /* Snap to month boundaries, pad 1 month before and 1 quarter after. */
+      start.setDate(1);
+      start.setMonth(start.getMonth() - 1);
+      end.setDate(1);
+      end.setMonth(end.getMonth() + 4); /* 1 quarter after end date */
+      /* Ensure at least 12 months visible. */
+      const monthSpan = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+      if (monthSpan < 12) {
+        end.setMonth(start.getMonth() + 12);
+      }
       break;
+    }
   }
 
   return { start, end };
