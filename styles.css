@@ -680,7 +680,7 @@ body.database-resizing {
   font-weight: 600;
   color: var(--text-muted);
   border-bottom: 1px solid var(--background-modifier-border);
-  height: 32px;
+  height: 53px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -754,13 +754,18 @@ body.database-resizing {
   z-index: 2;
   background: var(--background-secondary);
   border-bottom: 1px solid var(--background-modifier-border);
-  height: 32px;
   box-sizing: border-box;
+}
+
+.timeline-header__top-tier {
+  display: flex;
+  height: 24px;
+  border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .timeline-header__cells {
   display: flex;
-  height: 100%;
+  height: 28px;
 }
 
 .timeline-header-cell {
@@ -772,6 +777,12 @@ body.database-resizing {
   font-weight: 500;
   color: var(--text-muted);
   border-right: 1px solid var(--background-modifier-border);
+}
+
+.timeline-header-cell--top {
+  font-weight: 600;
+  color: var(--text-normal);
+  background: var(--background-secondary-alt, var(--background-secondary));
 }
 
 .timeline-today-marker {

@@ -189,6 +189,20 @@ export function getBarDimensions(
   return { left, width, isDot: false };
 }
 
+/** A single column in the bottom tier of the header. */
+export interface HeaderColumn {
+  readonly date: Date;
+  readonly label: string;
+  /** Top-tier group label (year) this column belongs to. */
+  readonly group: string;
+}
+
+/** A top-tier group spanning multiple bottom-tier columns. */
+export interface TopTierGroup {
+  readonly label: string;
+  readonly span: number;
+}
+
 /**
  * Generate column header dates for the visible range at the given zoom level.
  */
@@ -196,16 +210,43 @@ export function getHeaderColumns(
   rangeStart: Date,
   rangeEnd: Date,
   zoom: ZoomLevel,
-): readonly { date: Date; label: string }[] {
-  const columns: { date: Date; label: string }[] = [];
+): readonly HeaderColumn[] {
+  const columns: HeaderColumn[] = [];
   const current = alignToColumnBoundary(new Date(rangeStart), zoom);
 
   while (current <= rangeEnd) {
-    columns.push({ date: new Date(current), label: formatColumnLabel(current, zoom) });
+    columns.push({
+      date: new Date(current),
+      label: formatColumnLabel(current, zoom),
+      group: String(current.getFullYear()),
+    });
     advanceByZoom(current, zoom);
   }
 
   return columns;
+}
+
+/**
+ * Derive top-tier groups from consecutive columns sharing the same group label.
+ * Each group has a label and the number of columns it spans.
+ */
+export function getTopTierGroups(columns: readonly HeaderColumn[]): readonly TopTierGroup[] {
+  if (columns.length === 0) return [];
+  const groups: TopTierGroup[] = [];
+  let current = columns[0].group;
+  let span = 1;
+
+  for (let i = 1; i < columns.length; i++) {
+    if (columns[i].group === current) {
+      span++;
+    } else {
+      groups.push({ label: current, span });
+      current = columns[i].group;
+      span = 1;
+    }
+  }
+  groups.push({ label: current, span });
+  return groups;
 }
 
 /**
@@ -284,26 +325,32 @@ function weekEndSaturday(date: Date): Date {
 }
 
 /**
- * Format a date label appropriate for the zoom level.
- * - Week: "W12 - Mar 15" (week number + Sunday start)
- * - Month: "Jan (2026)"
- * - Quarter: "FY26 Q1 (Jan-Mar)"
- * - Year: "Jan 2026"
+ * Format a bottom-tier column label for the zoom level.
+ * Top tier always shows the year; bottom tier varies:
+ * - Week: "Mar 15 - 21" (date range Sun-Sat)
+ * - Month: "Jan", "Feb", etc.
+ * - Quarter: "Q1 (Jan-Mar)"
+ * - Year: "Jan", "Feb", etc. (12 months starting from current)
  */
 function formatColumnLabel(date: Date, zoom: ZoomLevel): string {
   switch (zoom) {
     case "week": {
-      const weekNum = getWeekNumber(date);
-      return `W${weekNum} - ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+      const sun = weekStartSunday(date);
+      const sat = weekEndSaturday(date);
+      const startLabel = `${MONTHS[sun.getMonth()]} ${sun.getDate()}`;
+      const endLabel = sun.getMonth() === sat.getMonth()
+        ? `${sat.getDate()}`
+        : `${MONTHS[sat.getMonth()]} ${sat.getDate()}`;
+      return `${startLabel} - ${endLabel}`;
     }
     case "month":
-      return `${MONTHS[date.getMonth()]} (${date.getFullYear()})`;
+      return MONTHS[date.getMonth()];
     case "quarter": {
       const q = getFiscalQuarter(date.getMonth());
-      return `${getFiscalYearLabel(date.getFullYear())} Q${q} (${QUARTER_MONTHS[q - 1]})`;
+      return `Q${q} (${QUARTER_MONTHS[q - 1]})`;
     }
     case "year":
-      return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+      return MONTHS[date.getMonth()];
   }
 }
 

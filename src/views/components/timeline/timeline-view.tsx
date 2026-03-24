@@ -69,11 +69,16 @@ export function TimelineView({
     [colorBy, schema.columns],
   );
 
-  /* Data-driven range: spans all records + padding per zoom level. */
-  const { start: rangeStart, end: rangeEnd } = useMemo(
-    () => getDataDrivenRange(datedRecords, startDateField, endDateField, zoom),
-    [datedRecords, startDateField, endDateField, zoom],
-  );
+  /* Range: year view shows 12 months from current; others are data-driven. */
+  const { start: rangeStart, end: rangeEnd } = useMemo(() => {
+    if (zoom === "year") {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 12, 0);
+      return { start, end };
+    }
+    return getDataDrivenRange(datedRecords, startDateField, endDateField, zoom);
+  }, [datedRecords, startDateField, endDateField, zoom]);
 
   /* Grid width = max(columns * colWidth, container width). */
   const gridWidth = useMemo(() => {

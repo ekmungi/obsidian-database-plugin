@@ -201,23 +201,24 @@ describe("getBarDimensions", () => {
 });
 
 describe("getHeaderColumns", () => {
-  it("returns columns for week zoom (weekly, Sunday start)", () => {
+  it("returns columns for week zoom (weekly, Sunday start, date range label)", () => {
     const start = new Date(2025, 0, 1);
     const end = new Date(2025, 1, 1);
     const cols = getHeaderColumns(start, end, "week");
     expect(cols.length).toBeGreaterThanOrEqual(4);
-    expect(cols[0].label).toMatch(/W\d+ - /);
     expect(cols[0].label).toContain("Dec");
+    expect(cols[0].label).toContain(" - ");
+    expect(cols[0].group).toBe("2024");
   });
 
-  it("returns columns for quarter zoom with FY labels and month ranges", () => {
+  it("returns columns for quarter zoom with Q labels and month ranges", () => {
     const start = new Date(2025, 0, 1);
     const end = new Date(2025, 11, 31);
     const cols = getHeaderColumns(start, end, "quarter");
     expect(cols.length).toBeGreaterThanOrEqual(3);
-    expect(cols[0].label).toContain("FY25");
     expect(cols[0].label).toContain("Q1");
     expect(cols[0].label).toContain("Jan-Mar");
+    expect(cols[0].group).toBe("2025");
   });
 });
 
