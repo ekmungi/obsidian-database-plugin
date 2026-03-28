@@ -221,7 +221,7 @@ export function RelationPicker({
               fontSize: "var(--font-ui-medium)",
               color: "var(--text-accent)",
             }}
-            onClick={handleCreate}
+            onClick={() => { void handleCreate(); }}
           >
             + Create "{query.trim()}"
           </div>

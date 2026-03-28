@@ -12,7 +12,6 @@ import { parseSchema, createDefaultSchema, discoverColumns } from "../engine/sch
 import { filterByDbViewType } from "../engine/query-engine";
 import {
   parseWikilinks,
-  formatWikilink,
   computeBidirectionalUpdates,
   computeBidirectionalRemovals,
 } from "../engine/relation-resolver";
@@ -156,7 +155,7 @@ export class DatabaseController {
     );
 
     registerFn(
-      this.app.vault.on("delete", async (file) => {
+      this.app.vault.on("delete", (file) => {
         if (file instanceof TFile && this.folderPath) {
           const isInFolder = file.path.startsWith(this.folderPath + "/");
           if (isInFolder) {
@@ -164,9 +163,9 @@ export class DatabaseController {
             if (deletedRecord) {
               this.records = this.records.filter((r) => r.id !== file.path);
               this.callbacks.onStateChange();
-              const timer = setTimeout(async () => {
+              const timer = setTimeout(() => {
                 this.pendingCleanups.delete(file.path);
-                await this.cleanupBacklinksForRecord(deletedRecord);
+                void this.cleanupBacklinksForRecord(deletedRecord);
               }, 2000);
               this.pendingCleanups.set(file.path, { timer, record: deletedRecord });
             }
@@ -652,7 +651,7 @@ export class DatabaseController {
       for (const file of mdFiles) {
         try {
           const content = await this.app.vault.read(file);
-          const newContent = removeFrontmatterField(content, column.reverseColumnId!);
+          const newContent = removeFrontmatterField(content, column.reverseColumnId);
           if (newContent !== content) {
             await this.app.vault.modify(file, newContent);
           }

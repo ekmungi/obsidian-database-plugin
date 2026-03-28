@@ -1,6 +1,6 @@
 /** Main entry point for the Obsidian Database Plugin. */
 
-import { Plugin, TFile, TFolder, WorkspaceLeaf } from "obsidian";
+import { Plugin, TFolder, WorkspaceLeaf } from "obsidian";
 import { DATABASE_VIEW_TYPE, DatabaseView } from "./views/database-view";
 import { registerDatabaseCodeblock } from "./views/codeblock-renderer";
 
@@ -51,7 +51,7 @@ export default class DatabasePlugin extends Plugin {
           if (seen.has(fp)) {
             // Duplicate — close this one and reveal the original
             leaf.detach();
-            this.app.workspace.revealLeaf(seen.get(fp)!);
+            void this.app.workspace.revealLeaf(seen.get(fp)!);
             return;
           }
           seen.set(fp, leaf);
@@ -69,7 +69,7 @@ export default class DatabasePlugin extends Plugin {
     const existing = this.app.workspace.getLeavesOfType(DATABASE_VIEW_TYPE)
       .find((l) => (l.view as DatabaseView).getFolderPath?.() === folderPath);
     if (existing) {
-      this.app.workspace.revealLeaf(existing);
+      await this.app.workspace.revealLeaf(existing);
       return;
     }
     const leaf = this.app.workspace.getLeaf("tab");
@@ -77,18 +77,18 @@ export default class DatabasePlugin extends Plugin {
       type: DATABASE_VIEW_TYPE,
       state: { folderPath },
     });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   /** Activates the database view in the current workspace. */
   private async activateDatabaseView(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(DATABASE_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf = this.app.workspace.getLeaf("tab");
     await leaf.setViewState({ type: DATABASE_VIEW_TYPE });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
 }

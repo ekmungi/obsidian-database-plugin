@@ -27,6 +27,7 @@ export function DatabaseSettingsModal({
   onClose,
 }: DatabaseSettingsModalProps) {
   const [name, setName] = useState(schema.name);
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   const [templateFolder, setTemplateFolder] = useState(
     schema.templateFolder ?? "",
   );
@@ -48,6 +49,7 @@ export function DatabaseSettingsModal({
       updates.name = name.trim();
     }
     const trimmedFolder = templateFolder.trim();
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     if (trimmedFolder !== (schema.templateFolder ?? "")) {
       updates.templateFolder = trimmedFolder || undefined;
     }

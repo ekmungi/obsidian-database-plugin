@@ -226,8 +226,8 @@ export function ColumnConfigModal({
       return null;
     }
     /* Check ID uniqueness (skip current column's own ID when editing). */
-    const otherIds = isEditing
-      ? existingIds.filter((eid) => eid !== column!.id)
+    const otherIds = column !== undefined
+      ? existingIds.filter((eid) => eid !== column.id)
       : existingIds;
     if (otherIds.includes(id)) {
       if (!silent) setError("A column with this ID already exists.");

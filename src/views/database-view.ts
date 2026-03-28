@@ -119,7 +119,7 @@ export class DatabaseView extends ItemView {
       for (const leaf of leaves) {
         const view = leaf.view;
         if (view instanceof DatabaseView && view !== this) {
-          view.reloadIfFolder(folderPath);
+          void view.reloadIfFolder(folderPath);
         }
       }
     }, 200);

@@ -1,6 +1,6 @@
 {
   "name": "database-views",
-  "version": "0.17.0",
+  "version": "0.17.1",
   "description": "Notion-like database views for Obsidian — tables, kanban boards, and calendars over your markdown files",
   "main": "main.js",
   "scripts": {

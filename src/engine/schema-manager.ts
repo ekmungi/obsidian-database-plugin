@@ -114,7 +114,9 @@ export function parseSchema(jsonString: string): DatabaseSchema {
     schema = { ...schema, version: 1 };
   }
   // Migrate legacy templateFolder to templateFolders array
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   if (schema.templateFolder && !schema.templateFolders) {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     const { templateFolder, ...rest } = schema;
     schema = { ...rest, templateFolders: [{ path: templateFolder }] };
   }
